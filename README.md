@@ -16,15 +16,31 @@ OPENAI_API_KEY=sk-...
 ```bash
 uv run realtime_demo.py              # headset: interrupt the assistant any time
 uv run realtime_demo.py --speakers   # laptop speakers: mic muted while it talks
+uv run realtime_demo.py --push-to-talk  # noisy room: Enter to talk, Enter to send
 ```
 
-Other options: `--model`, `--voice`, `--eagerness`, `--device`, `--mic` (see `--help`).
+Other options: `--model`, `--voice`, `--eagerness`, `--device`, `--mic`,
+`--headset-mic` (see `--help`).
 
-Bluetooth headset: its mic only works in call mode (HFP), so the script switches the
-headset to call mode (CVSD codec) before opening the audio streams and back on exit.
-Letting PipeWire switch on its own freezes the streams, and the default mSBC codec fails
-on some laptops. To use another mic instead, pass `--mic <source>` (see
-`pactl list short sources`).
+Noisy room (hackathon, open space): the laptop mic picks up the conversations around
+you, and the voice detection takes them for you: it waits for you to finish while they
+talk (stuck on `[hearing you...]`), and cancels its answers when they speak up. So the
+mic goes through a noise gate: anything quieter than `--noise-gate` (default -10 dBFS)
+is sent as silence, and you need to talk close to the laptop. To tune it, run
+`uv run realtime_demo.py --levels`, stay silent then talk, and set the gate between the
+two levels: raise it (e.g. `-6`) if it stays on `[hearing you...]`, lower it (e.g.
+`-20`) if it doesn't hear you, `-90` turns it off in a quiet room. If the room is too
+loud for any gate, use `--push-to-talk`: the model only hears you between two presses
+of Enter, and pressing Enter while it talks interrupts it.
+
+Bluetooth headset: by default you hear the assistant in the headset (music mode) and
+talk into the laptop mic. The headset's own mic only works in call mode (HFP), whose
+audio link fails every few seconds on some laptops (`corrupted SCO packet` in
+`journalctl -k`), so the model stops hearing you. To use it anyway, pass
+`--headset-mic`: the script switches the headset to call mode (CVSD codec) before
+opening the audio streams and back on exit, and when PipeWire stops the headset's mic or
+speaker it prints `[mic froze, reopening it]` and reopens the stream. To pick another
+mic, pass `--mic <source>` (see `pactl list short sources`).
 
 ## How it works
 
