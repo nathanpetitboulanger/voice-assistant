@@ -1,10 +1,11 @@
-"""The fictional customer the web app shows (GET /api/customer): accounts, cards and
-operations, so the bank's screens around the assistant aren't empty.
+"""The fictional customers of the demo login (Connexion démo): accounts, cards and
+operations, for the app's screens (GET /api/customer) and the assistant's tools
+(get_accounts, search_transactions, get_cards in bank_tools.py), so both always give the
+same figures.
 
-Read-only, and the same for every visitor. The assistant never reads it: it still can't
-give a balance (see INSTRUCTIONS). What it does shows on the page instead: after a card
-block, the page marks the card as opposed, in the visitor's browser
-(web/src/lib/customer.ts). Keys in camelCase, like the page's types (web/src/lib/types.ts).
+Only for a logged-in session, and only its own customer. Read-only seeds: what a
+session changes (a card locked or opposed) is in its sandbox (bank_store.py), applied by
+customer(). Keys in camelCase, like the page's types (web/src/lib/types.ts).
 """
 
 from datetime import UTC, datetime, timedelta
@@ -137,15 +138,93 @@ def _transaction(when, row):
     }
 
 
-def customer(now=None):
+# A second profile, so that one customer reaching another's data can be tested.
+LUCAS = {"firstName": "Lucas", "displayName": "Lucas Bernard", "initials": "LB"}
+LUCAS_ACCOUNTS = [
+    {
+        "id": "acc_lb_cc",
+        "type": "COMPTE_COURANT",
+        "label": "Compte courant",
+        "maskedIban": "FR76 •••• •••• •••• 6107",
+        "balanceCents": 312040,
+        "status": "OPEN",
+    },
+    {
+        "id": "acc_lb_livret",
+        "type": "LIVRET_A",
+        "label": "Livret A",
+        "maskedIban": "FR76 •••• •••• •••• 2294",
+        "balanceCents": 230000,
+        "status": "OPEN",
+    },
+]
+LUCAS_CARDS = [
+    {
+        "id": "card_lb_mastercard",
+        "accountId": "acc_lb_cc",
+        "label": "Carte Mastercard",
+        "kind": "PHYSICAL",
+        "network": "MASTERCARD",
+        "maskedNumber": "9054",
+        "holder": "LUCAS BERNARD",
+        "expiry": "11/27",
+        "status": "ACTIVE",
+        "paymentLimitCents": 200000,
+        "withdrawalLimitCents": 60000,
+        "spentThisPeriodCents": 23870,
+        "onlinePayments": True,
+        "contactless": True,
+    },
+]
+LUCAS_CARD = "Carte Mastercard •••• 9054"
+# fmt: off
+LUCAS_THIS_MONTH = [
+    ((0, 9), ("tx_lb_cafe", "acc_lb_cc", "Café", "CB CAFE DE LA GARE", -420, "Restaurants", IN_STORE, LUCAS_CARD, False)),
+    ((1, 17), ("tx_lb_librairie", "acc_lb_cc", "Librairie", "CB LIBRAIRIE DU CENTRE", -2350, "Shopping", IN_STORE, LUCAS_CARD, False)),
+    ((3, 8), ("tx_lb_salaire", "acc_lb_cc", "Virement salaire", "VIR SEPA SALAIRE BUREAU D ETUDES", 241000, "Revenus", "Salaire mensuel.", "Virement SEPA", False)),
+    ((5, 12), ("tx_lb_supermarche", "acc_lb_cc", "Supermarché", "CB SUPERMARCHE DU PORT", -6120, "Alimentation", IN_STORE, LUCAS_CARD, False)),
+]
+LUCAS_LAST_MONTH = [
+    ((4, 7), ("tx_lb_lm_loyer", "acc_lb_cc", "Loyer", "VIR LOYER SCI DES TILLEULS", -81000, "Logement", "Virement permanent : loyer.", "Virement SEPA", False)),
+    ((15, 4), ("tx_lb_lm_energie", "acc_lb_cc", "Fournisseur d'énergie", "PRLV SEPA ENERGIE", -5800, "Logement", "Prélèvement mensuel.", "Prélèvement SEPA", False)),
+]
+# fmt: on
+
+# id: (customer, accounts, cards, this month, last month)
+CUSTOMERS = {
+    "camille": (CUSTOMER, ACCOUNTS, CARDS, THIS_MONTH, LAST_MONTH),
+    "lucas": (LUCAS, LUCAS_ACCOUNTS, LUCAS_CARDS, LUCAS_THIS_MONTH, LUCAS_LAST_MONTH),
+}
+# What the login dialog shows: names, and what's in each profile, nothing more.
+PROFILES = [
+    {
+        "id": "camille",
+        "displayName": CUSTOMER["displayName"],
+        "description": "Compte courant, Livret A, carte Visa",
+    },
+    {
+        "id": "lucas",
+        "displayName": LUCAS["displayName"],
+        "description": "Compte courant, Livret A, carte Mastercard",
+    },
+]
+
+
+def customer(customer_id, now=None, card_statuses=None):
+    """One customer's data, with the card statuses of their session's sandbox."""
+    person, accounts, cards, this_month, last_month = CUSTOMERS[customer_id]
     now = (now or datetime.now(UTC)).replace(microsecond=0)
     transactions = [
-        _transaction(_this_month(now, *when), row) for when, row in THIS_MONTH
-    ] + [_transaction(_last_month(now, *when), row) for when, row in LAST_MONTH]
+        _transaction(_this_month(now, *when), row) for when, row in this_month
+    ] + [_transaction(_last_month(now, *when), row) for when, row in last_month]
     transactions.sort(key=lambda t: t["timestamp"], reverse=True)
+    statuses = card_statuses or {}
     return {
-        "customer": CUSTOMER,
-        "accounts": ACCOUNTS,
-        "cards": CARDS,
+        "customer": {"id": customer_id, **person},
+        "accounts": accounts,
+        "cards": [
+            {**card, "status": statuses.get(card["id"], card["status"])}
+            for card in cards
+        ],
         "transactions": transactions,
     }

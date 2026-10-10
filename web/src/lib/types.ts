@@ -1,8 +1,9 @@
-// The page's types: the fictional customer (GET /api/customer, demo_customer.py), and
-// what the assistant's tools (bank_tools.py) turn into on the page.
+// The page's types: the logged-in demo customer (GET /api/customer, demo_customer.py),
+// and what the assistant's tools (bank_tools.py) turn into on the page.
 
 export type AccountType = "COMPTE_COURANT" | "LIVRET_A"
-export type CardStatus = "ACTIVE" | "OPPOSED"
+// LOCKED: temporary, the customer can unlock it. OPPOSED: definitive (opposition).
+export type CardStatus = "ACTIVE" | "LOCKED" | "OPPOSED"
 export type TxStatus = "COMPLETED" | "PENDING"
 
 export interface Account {
@@ -45,7 +46,7 @@ export interface Card {
 }
 
 export interface CustomerData {
-  customer: { firstName: string; displayName: string; initials: string }
+  customer: { id: string; firstName: string; displayName: string; initials: string }
   accounts: Account[]
   cards: Card[]
   transactions: Transaction[]
@@ -65,20 +66,49 @@ export interface Loan {
   [key: string]: unknown
 }
 
-// A démarche done with the assistant, kept on this device (see demarches.ts). Nothing
-// personal: no income, age or complaint facts.
+// A démarche done with the assistant, stored by the server for this session (see
+// demarches.ts): an opposition, a loan or a complaint passed on, a demo request...
 export interface Demarche {
   reference: string
   kind: string // start_request's kind, or loan, complaint, transfer
   title: string
   detail: string
+  status: string // done, requested, transmitted, demo_request (demarches.ts STATUS_LABEL)
   pdf?: { url: string; name: string }
   at: number // Date.now()
-  mode: Mode
+  mode: Mode | "app"
+}
+
+/** An action Compass prepared (bank_tools.py), done only after the customer's yes. */
+export interface PendingAction {
+  id: string
+  kind: string
+  title: string
+  details: string[]
+  via: Mode // the conversation it belongs to: the yes goes there
+}
+export type ActionState = "pending" | "done" | "cancelled" | "failed"
+
+/** An operation as search_transactions returns it. */
+export interface FoundTransaction {
+  id: string
+  date: string
+  merchant: string
+  label: string
+  amount: string
+  amount_eur: number
+  channel: string
+  status: string
 }
 
 /** Rich blocks shown in the conversation. */
-export type AssistantCard = { kind: "loan"; loan: Loan } | { kind: "demarche"; demarche: Demarche }
+export type AssistantCard =
+  | { kind: "loan"; loan: Loan }
+  | { kind: "demarche"; demarche: Demarche }
+  | { kind: "confirm"; action: PendingAction }
+  | { kind: "login"; reason: string }
+  | { kind: "accounts"; accounts: { label: string; balance_eur: number; iban_end: string }[] }
+  | { kind: "transactions"; transactions: FoundTransaction[]; count: number }
 
 // ---------------------------------------------------------------------------
 // The app's pages, and what can be highlighted when the assistant's work shows on one.
@@ -102,6 +132,6 @@ export interface TraceEvent {
   channel: Mode
   name: string
   label: string
-  outcome: "running" | "ok" | "waiting" | "error"
+  outcome: "running" | "ok" | "waiting" | "error" | "cancelled"
   detail: string
 }

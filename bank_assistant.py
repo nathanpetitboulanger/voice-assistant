@@ -16,10 +16,22 @@ Same audio options as realtime_demo.py.
 
 from functools import partial
 
-from bank_tools import INSTRUCTIONS, TOOLS, Conversation, run_tool
+import bank_store
+from bank_tools import Conversation, instructions, run_tool, tools_for
 from realtime_demo import parse_args, run
 
 if __name__ == "__main__":
-    # One conversation per run: it keeps the procedure (démarche) in progress.
-    run_in_conversation = partial(run_tool, conversation=Conversation())
-    run(parse_args(__doc__), INSTRUCTIONS, TOOLS, run_in_conversation)
+    # The terminal is the demo customer Camille Martin, logged in, as on the web after
+    # the Connexion démo: her accounts, cards and operations (demo_customer.py).
+    _, session = bank_store.new_session("camille")
+    # One conversation per run: the procedure (démarche) in progress, and the actions
+    # waiting for a yes, confirmed only after the customer has spoken (on_event).
+    conversation = Conversation(session, "voice")
+    run_in_conversation = partial(run_tool, conversation=conversation)
+    run(
+        parse_args(__doc__),
+        instructions(session, "voice"),
+        tools_for(session),
+        run_in_conversation,
+        conversation.on_event,
+    )

@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from "react"
 import { CalendarIcon, CheckIcon, ClipboardListIcon, CopyIcon, MessageSquareTextIcon, SparklesIcon, Trash2Icon } from "lucide-react"
 import { askCompass } from "@/lib/compass"
-import { clearDemarches, useDemarches } from "@/lib/demarches"
+import { clearDemarches, refreshDemarches, STATUS_LABEL, useDemarches } from "@/lib/demarches"
 import { useLocation } from "@/lib/router"
 import type { Demarche } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { DEMARCHE_ICONS, RecapButton } from "@/components/compass/cards"
-import { Panel, ScreenHeader, Section } from "@/components/bank/ui"
+import { Panel, ScreenHeader, Section, SkeletonRows } from "@/components/bank/ui"
+import { toast } from "@/components/shell/toast"
 import { usePage } from "@/components/shell/use-page"
 
 function when(at: number): string {
   const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(at)
   const today = new Date().toDateString() === new Date(at).toDateString()
-  return today ? `Aujourd'hui à ${time}` : `Hier à ${time}` // kept 24 hours at most
+  return today ? `Aujourd'hui à ${time}` : `${new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(at)} à ${time}`
 }
+
+const MODE: Record<string, string> = { voice: "à la voix", text: "par écrit", app: "dans l'application" }
 
 function DemarcheItem({ demarche, highlighted }: { demarche: Demarche; highlighted: boolean }) {
   const [copied, setCopied] = useState(false)
@@ -43,8 +46,9 @@ function DemarcheItem({ demarche, highlighted }: { demarche: Demarche; highlight
         <div className="min-w-0 flex-1">
           <h2 className="font-extrabold leading-tight text-navy">{demarche.title}</h2>
           <p className="text-xs text-muted-ink">
-            {when(demarche.at)} · {demarche.mode === "voice" ? "à la voix" : "par écrit"}
+            {when(demarche.at)} · {MODE[demarche.mode] ?? demarche.mode}
           </p>
+          <p className="mt-0.5 text-xs font-bold text-ok">{STATUS_LABEL[demarche.status] ?? demarche.status}</p>
         </div>
       </div>
       <p className="flex items-baseline justify-between gap-2 rounded-2xl bg-surface px-3 py-2">
@@ -67,8 +71,13 @@ export function DemarchesScreen() {
   usePage("demarches")
   const { params } = useLocation()
   const demarches = useDemarches((s) => s.demarches)
+  const loaded = useDemarches((s) => s.loaded)
   const [confirming, setConfirming] = useState(false)
   const highlighted = params.get("ref")
+
+  useEffect(() => {
+    void refreshDemarches()
+  }, [])
 
   return (
     <div className="pb-10">
@@ -90,7 +99,11 @@ export function DemarchesScreen() {
         </Section>
 
         <Section title="Ce que Compass a fait pour vous">
-          {demarches.length === 0 ? (
+          {!loaded ? (
+            <Panel>
+              <SkeletonRows n={2} />
+            </Panel>
+          ) : demarches.length === 0 ? (
             <Panel className="flex flex-col items-center gap-2 py-8 text-center">
               <ClipboardListIcon className="size-8 text-muted-ink" aria-hidden />
               <p className="font-extrabold text-navy">Aucune démarche pour l&apos;instant</p>
@@ -103,15 +116,19 @@ export function DemarchesScreen() {
                   <DemarcheItem key={d.reference} demarche={d} highlighted={d.reference === highlighted} />
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-muted-ink">Sans compte réel, elles restent dans ce navigateur 24 heures, comme les récapitulatifs PDF.</p>
+              <p className="mt-3 text-xs text-muted-ink">Démarches simulées : elles restent le temps de votre session de démonstration. La déconnexion les efface.</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {confirming ? (
                   <>
                     <span className="text-sm font-semibold text-navy">Tout effacer de cet appareil ?</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        clearDemarches()
+                      onClick={async () => {
+                        try {
+                          await clearDemarches()
+                        } catch {
+                          toast("Les démarches n'ont pas pu être effacées. Réessayez.", "error")
+                        }
                         setConfirming(false)
                       }}
                       className="h-10 rounded-xl bg-brand px-3 text-sm font-bold text-white"
@@ -145,7 +162,7 @@ export function DemarchesScreen() {
               <CalendarIcon className="size-5 text-brand" aria-hidden />
               <span className="flex-1">
                 <span className="block font-bold text-navy">Rendez-vous avec un conseiller</span>
-                <span className="block text-xs text-muted-ink">Compass le prend pour vous : le conseiller vous rappelle</span>
+                <span className="block text-xs text-muted-ink">Compass le prépare, vous confirmez (simulation)</span>
               </span>
             </button>
           </Panel>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { MotionConfig } from "motion/react"
+import { useAuth } from "@/lib/auth"
 import { usePrefs } from "@/lib/prefs"
 import { useLocation } from "@/lib/router"
 import { BottomNav } from "./bottom-nav"
@@ -8,6 +9,7 @@ import { Toaster } from "./toast"
 import { CompassLayer } from "@/components/compass/compass-layer"
 import { DemoPanel } from "@/components/demo/demo-panel"
 import { BrandColumn } from "./brand-column"
+import { LoginDialog } from "@/components/auth/login-dialog"
 
 /** Applies the accessibility preferences (Profil) to the whole document. */
 function PreferencesApplier() {
@@ -26,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
   const mainRef = useRef<HTMLElement>(null)
   const reduce = usePrefs((p) => p.reducedMotion)
+  const customer = useAuth((s) => s.status === "customer") // the bank's menu: once logged in
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 })
@@ -50,8 +53,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <main id="main" ref={mainRef} tabIndex={-1} className="no-scrollbar relative flex-1 overflow-y-auto overscroll-contain bg-surface outline-none">
                 {children}
               </main>
-              <BottomNav />
+              {customer && <BottomNav />}
               <CompassLayer />
+              <LoginDialog />
               <Toaster />
             </div>
           </div>

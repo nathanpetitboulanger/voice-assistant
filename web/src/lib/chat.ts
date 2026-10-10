@@ -1,3 +1,4 @@
+import { usePrefs } from "./prefs"
 import { addMessage, hasMessage, patchMessage, useCompass } from "./store"
 import { HARMLESS_ERRORS, ToolTracker, type ServerEvent } from "./tools"
 
@@ -11,6 +12,7 @@ let turn: string | null = null // the assistant's message for the current questi
 let items = new Set<string>() // the answer's items in this turn: a new one, a new paragraph
 let responding = false
 let queue: string[] = [] // questions to ask once the assistant is free
+let unavailable = false // the server couldn't reach OpenAI: a failure, not an end
 const tools = new ToolTracker("text")
 
 function turnMessage(): string {
@@ -72,6 +74,7 @@ function onEvent(e: ServerEvent) {
       break
     case "error":
       if (HARMLESS_ERRORS.includes(e.error?.code)) break
+      if (e.error?.code === "unavailable") unavailable = true
       console.warn("Realtime error", e.error)
       patchMessage(turnMessage(), (m) => ({ ...m, status: "error", error: e.error?.message ?? "Erreur inconnue." }))
       if (!responding) setIdle() // no answer is coming
@@ -85,9 +88,12 @@ export function connectChat() {
   turn = null
   items = new Set()
   responding = false
+  unavailable = false
   useCompass.setState({ chatStatus: "connecting", busy: true, announce: "" }) // the assistant says hi first
   const scheme = location.protocol === "https:" ? "wss" : "ws"
-  const ws = new WebSocket(`${scheme}://${location.host}/api/chat`)
+  // The server picks the tools from this browser's session cookie, not from the page.
+  const simple = usePrefs.getState().simple ? "?simple=1" : ""
+  const ws = new WebSocket(`${scheme}://${location.host}/api/chat${simple}`)
   socket = ws
   let opened = false
   ws.onopen = () => {
@@ -99,7 +105,7 @@ export function connectChat() {
     if (socket !== ws) return // replaced by a new conversation
     socket = null
     finishTurn()
-    useCompass.setState({ chatStatus: opened ? "ended" : "failed", busy: false })
+    useCompass.setState({ chatStatus: opened && !unavailable ? "ended" : "failed", busy: false })
   }
 }
 
@@ -109,6 +115,14 @@ export function sendChat(text: string) {
   if (chatStatus === "open" && !busy) return send(text)
   queue.push(text)
   if (chatStatus !== "open" && chatStatus !== "connecting") connectChat()
+}
+
+/** Whether the written conversation can take a message now. */
+export const useChatOpen = () => useCompass((s) => s.chatStatus === "open")
+
+/** « Explications simples », switched during a written conversation. */
+export function setChatSimple(simple: boolean) {
+  post({ type: "settings", simple })
 }
 
 /** « Arrêter »: stops the answer being written. */

@@ -20,3 +20,12 @@ export function askCompass(message: string) {
 export function openCompass(mode = usePrefs.getState().mode) {
   useCompass.setState({ sheet: "open", voice: voiceActive() || mode === "voice" })
 }
+
+/** The buttons of an action Compass prepared: the customer's answer, said in the
+ * conversation it belongs to, as if typed or spoken. The server only does the action
+ * after this turn (bank_tools.Conversation.confirm). */
+export function answerAction(via: "text" | "voice", yes: boolean) {
+  const text = yes ? "Oui, je confirme." : "Non, j'annule."
+  if (via === "voice") sendVoiceText(text)
+  else sendChat(text)
+}

@@ -3,29 +3,50 @@
 Voice Q&A demo over `docs/` with the OpenAI Realtime API (`realtime_demo.py`).
 `bank_assistant.py` reuses its audio loop (`parse_args`, `run`) for a banking assistant
 for blind customers: tools in `bank_tools.py`, procedure sheets in `bank_docs/`.
-`server.py` + `web/` is the web version of the bank assistant: a public site (no login),
-IAIMPACT's front (BPCE Compass: a banking app in a phone frame, Compass as a sheet over
-it), by voice (WebRTC to OpenAI, tools run server-side over the call's `call_id`
-WebSocket) or in writing (`/api/chat` WebSocket: the server relays a text-only Realtime
-session, same model and tools, `TEXT_INSTRUCTIONS`); deployed with `deploy/deploy.sh`.
-The host Nginx needs the Upgrade headers for `/api/chat` (see
-`deploy/nginx-host.conf.template`), or the written chat gets a 404. The screens show a
-read-only fictional customer (`demo_customer.py`, `GET /api/customer`); the assistant
-never reads it. In `web/src/lib`, `tools.ts` turns the tool calls into chips, cards,
-démarches and the app's response (card opposed, Mes démarches) for both modes, keep its
-labels in sync with `bank_tools.py`; the app's texts (`site.ts`) give no figures, the
-assistant does. `INSTRUCTIONS` lives in `bank_tools.py` so the server doesn't import the
-audio code.
+`server.py` + `web/` is the web version of the bank assistant, IAIMPACT's front (BPCE
+Compass: a banking app in a phone frame, Compass as a sheet over it), by voice (WebRTC
+to OpenAI, tools run server-side over the call's `call_id` WebSocket) or in writing
+(`/api/chat` WebSocket: the server relays a text-only Realtime session, same model and
+tools); deployed with `deploy/deploy.sh`. The host Nginx needs the Upgrade headers for
+`/api/chat` (see `deploy/nginx-host.conf.template`), or the written chat gets a 404.
+
+Sessions (`bank_store.py`, SQLite, stdlib): every browser gets an HttpOnly cookie, a
+visitor (the public home, `web/src/components/public/`) until the « Connexion démo »
+(fictional profiles of `demo_customer.py`, code `DEMO_ACCESS_CODE`) opens a customer's
+session; logout revokes it. Each login is its own sandbox (card statuses, démarches):
+logging out is the demo's reset, there is no reset endpoint. The server decides, from
+the session and never from the page or the model: `GET /api/customer` is customers only,
+`tools_for()` gives a visitor `PUBLIC_TOOLS` (no account data, `offer_login`) and a
+customer `CUSTOMER_TOOLS` (`get_accounts`, `search_transactions`, `get_cards` read the
+same seeds as the screens), and `Conversation.run` checks again before each private
+tool. Actions are two-step: a tool prepares one, `confirm_action` runs it only after a
+user turn the model can't make up (`Conversation.on_event`), once, within 5 minutes; a
+« non » is never a yes. Card lock (temporary) and opposition (definitive) are different
+kinds: keep them apart. Transfers don't exist: the assistant says so.
+In `web/src/lib`, `tools.ts` turns the tool calls into chips and cards (confirm buttons
+send « Oui, je confirme. » into the conversation) and reloads what the server stored;
+keep its labels in sync with `bank_tools.py`. The app's texts (`site.ts`) give no
+figures, the assistant does. `instructions()` lives in `bank_tools.py` so the server
+doesn't import the audio code.
 Keep it short (gpt-realtime mini follows fewer rules well): topic rules go in the
-procedure sheets, and fixed wording (loan figures, legal notice, recap) goes in the
-tools' `say_word_for_word`. Everything the model reads (`INSTRUCTIONS`, tool and
-parameter descriptions, tool errors) is in French, for a French accent; names and
-enum values stay in English. The recap PDFs, loan and complaint (`recap_pdf.py`,
-WeasyPrint, needs Pango) go to `RECAPS_DIR` (`recaps/`, `/tmp/recaps` in Docker), served
-at `/api/recaps/`. One procedure (démarche) at a time per call: `Conversation` in
-`bank_tools.py` (one per call in `server.py`, one per run in `bank_assistant.py`) only
-runs a procedure's tools while it is in progress, and makes `get_procedure` say that it
-stops the unfinished one.
+procedure sheets, and fixed wording (loan figures, legal notice, recap, every prepared
+action's question) goes in the tools' `say_word_for_word`; a rule the model must follow
+at a precise moment is best returned by the tool at that moment (e.g. `get_procedure`'s
+`visitor` note). Everything the model reads (instructions, tool and parameter
+descriptions, tool errors) is in French, for a French accent; names and enum values
+stay in English. The recap PDFs, loan and complaint (`recap_pdf.py`, WeasyPrint, needs
+Pango) go to `RECAPS_DIR` (`recaps/`, `/tmp/recaps` in Docker), served at `/api/recaps/`
+to their session only. One procedure (démarche) at a time per conversation:
+`Conversation` only runs a procedure's tools while it is in progress, and makes
+`get_procedure` say that it stops the unfinished one. The terminal version
+(`bank_assistant.py`) is Camille Martin, logged in.
+
+Tests: `uv run pytest` (API, tools, chat relay with a fake Realtime API, and browser
+tests on `web/dist`: `cd web && npm run build` first; Playwright uses
+`/usr/bin/chromium` unless `CHROMIUM` is set). `uv run pytest -m live` talks to the
+real model, by text and by voice (TTS played into Chromium's fake mic).
+`tests/live_smoke.py <url>` replays the brief's scenarios against a running server.
+`DEMO.md` is the operator's guide for the live demo.
 Dev machine: Arch, PipeWire 1.6.9, MediaTek MT7921 Wi-Fi/Bluetooth card (USB `13d3:3563`,
 `btusb`), Sony WH-CH520 Bluetooth headset, built-in laptop mic.
 

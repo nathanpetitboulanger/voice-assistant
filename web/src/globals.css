@@ -35,7 +35,7 @@
   --surface: #f7f8fa;
   --line: #e5e8ed;
   --muted-ink: #667085;
-  --ok: #16805d;
+  --ok: #147a58; /* 4.7:1 on --ok-soft: WCAG AA for the small status pills */
   --ok-soft: #e7f5ef;
   --warn: #b54708;
   --warn-soft: #fef3e6;

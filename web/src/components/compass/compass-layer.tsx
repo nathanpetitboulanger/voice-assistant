@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import {
-  ArrowUpIcon, ChevronDownIcon, ChevronUpIcon, CircleAlertIcon, LoaderCircleIcon, MapPinIcon, MicIcon, RotateCcwIcon, SquareIcon, XIcon,
+  ArrowUpIcon, BookOpenTextIcon, ChevronDownIcon, ChevronUpIcon, CircleAlertIcon, LoaderCircleIcon, MapPinIcon, MicIcon, RotateCcwIcon, SquareIcon, XIcon,
 } from "lucide-react"
+import { useAuth } from "@/lib/auth"
 import { cancelChat, connectChat, newConversation, sendChat } from "@/lib/chat"
-import { useCustomer } from "@/lib/customer"
-import { SUGGESTIONS } from "@/lib/site"
+import { usePrefs } from "@/lib/prefs"
+import { PUBLIC_SUGGESTIONS, SUGGESTIONS } from "@/lib/site"
 import { useCompass, type ChatStatus, type UIMessage } from "@/lib/store"
 import { cn } from "@/lib/utils"
 import { interrupt, voiceActive } from "@/lib/voice"
 import { AssistantCardView, ToolChips } from "./cards"
 import { CompassMark } from "./compass-mark"
 import { VoiceController, VoiceMode, VoicePeek } from "@/components/voice/voice-mode"
+import { setSimple } from "@/components/settings/accessibility"
 
 const PAGE_LABEL: Record<string, string> = {
   accueil: "Accueil", comptes: "Comptes", operations: "Opérations", cartes: "Cartes", demarches: "Mes démarches", profil: "Profil",
@@ -124,16 +126,19 @@ function Welcome({ firstName }: { firstName?: string }) {
       <p className="text-[22px] font-extrabold leading-tight tracking-tight text-navy">
         Bonjour{firstName ? ` ${firstName}` : ""} 👋
         <br />
-        <span className="text-[17px] font-semibold text-muted-ink">Réclamation, carte ou code perdu, crédit, épargne : dites-moi.</span>
+        <span className="text-[17px] font-semibold text-muted-ink">
+          {firstName ? "Solde, opérations, carte perdue, crédit, réclamation : dites-moi." : "Crédit, mot de passe oublié, réclamation, conseiller : posez votre question."}
+        </span>
       </p>
+      {!firstName && <p className="text-xs font-semibold text-muted-ink">Vous n&apos;êtes pas connecté·e : Compass n&apos;a accès à aucun compte.</p>}
     </div>
   )
 }
 
-function Suggestions() {
+function Suggestions({ customer }: { customer: boolean }) {
   return (
     <div className="grid grid-cols-2 gap-2 pt-4" role="group" aria-label="Suggestions">
-      {SUGGESTIONS.map((s) => (
+      {(customer ? SUGGESTIONS : PUBLIC_SUGGESTIONS).map((s) => (
         <button
           key={s}
           type="button"
@@ -235,18 +240,20 @@ export function CompassLayer() {
   const busy = useCompass((s) => s.busy)
   const status = useCompass((s) => s.chatStatus)
   const announce = useCompass((s) => s.announce)
-  const { data } = useCustomer()
+  const person = useAuth((s) => s.customer)
+  const simple = usePrefs((p) => p.simple)
   const scroller = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const [navH, setNavH] = useState(84)
+  const [navH, setNavH] = useState(0)
 
+  // The peek sits above the bank's menu, which only a logged-in customer has.
   useEffect(() => {
     const nav = document.getElementById("bottom-nav")
-    if (!nav) return
+    if (!nav) return setNavH(0)
     const ro = new ResizeObserver(() => setNavH(nav.offsetHeight))
     ro.observe(nav)
     return () => ro.disconnect()
-  }, [])
+  }, [person])
 
   // The written conversation opens the first time Compass is shown in writing.
   useEffect(() => {
@@ -322,7 +329,7 @@ export function CompassLayer() {
                       <h2 className="text-base font-extrabold leading-tight text-navy">Compass</h2>
                       <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-muted-ink">
                         <MapPinIcon className="size-3" aria-hidden />
-                        {PAGE_LABEL[page] ?? "Application"}
+                        {person ? (PAGE_LABEL[page] ?? "Application") : "Non connecté·e"}
                         {STATUS_LABEL[status] && (
                           <>
                             {" · "}
@@ -331,6 +338,16 @@ export function CompassLayer() {
                         )}
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setSimple(!simple)}
+                      aria-pressed={simple}
+                      aria-label="Explications simples"
+                      title="Explications simples"
+                      className={cn("flex size-9 items-center justify-center rounded-full hover:bg-surface", simple ? "bg-navy text-white hover:bg-navy-2" : "text-navy")}
+                    >
+                      <BookOpenTextIcon className="size-[18px]" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => newConversation(voiceActive())}
@@ -350,7 +367,7 @@ export function CompassLayer() {
                   </div>
                 </header>
                 <div ref={scroller} className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-4 py-4" role="log" aria-label="Conversation avec Compass">
-                  {!asked && <Welcome firstName={data?.customer.firstName} />}
+                  {!asked && <Welcome firstName={person?.firstName} />}
                   <div className="flex flex-col gap-4">
                     {visible.map((m) => (
                       <Message key={m.id} m={m} />
@@ -358,7 +375,7 @@ export function CompassLayer() {
                     {/* Until the answer's first event: the greeting, or right after a question. */}
                     {busy && visible[visible.length - 1]?.role !== "assistant" && <Typing />}
                   </div>
-                  {status === "open" && !asked && !busy && <Suggestions />}
+                  {status === "open" && !asked && !busy && <Suggestions customer={!!person} />}
                   {over && (
                     <div className="mt-5 flex flex-col items-center gap-3 rounded-3xl bg-surface p-4 text-center" role="status">
                       <p className="text-sm font-semibold text-navy">
@@ -383,7 +400,7 @@ export function CompassLayer() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
             className="absolute inset-x-3 z-40"
-            style={{ bottom: navH + 10 }}
+            style={{ bottom: navH ? navH + 10 : "max(env(safe-area-inset-bottom), 12px)" }}
           >
             {voice ? (
               <VoicePeek />

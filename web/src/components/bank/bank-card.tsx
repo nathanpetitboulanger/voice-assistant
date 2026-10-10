@@ -1,16 +1,17 @@
 import { motion } from "motion/react"
-import { BanIcon, NfcIcon } from "lucide-react"
+import { BanIcon, LockIcon, NfcIcon } from "lucide-react"
 import type { Card } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 /** Card visual. Only the masked number is ever displayed. */
 export function BankCardVisual({ card, compact }: { card: Card; compact?: boolean }) {
   const opposed = card.status === "OPPOSED"
+  const locked = card.status === "LOCKED"
   const virtual = card.kind === "VIRTUAL"
   return (
     <div
       role="img"
-      aria-label={`${card.label} ${card.maskedNumber}, ${opposed ? "en opposition" : "active"}`}
+      aria-label={`${card.label} ${card.maskedNumber}, ${STATUS[card.status]}`}
       className={cn(
         "relative aspect-[1.586/1] w-full overflow-hidden rounded-[22px] p-5 text-white shadow-[0_18px_30px_-14px_rgba(20,35,59,0.55)]",
         virtual ? "bg-[linear-gradient(135deg,#22365a_0%,#14233b_100%)]" : "bg-[linear-gradient(135deg,#d11a37_0%,#9e0b23_100%)]",
@@ -52,20 +53,30 @@ export function BankCardVisual({ card, compact }: { card: Card; compact?: boolea
           {!compact && <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-extrabold">Carte en opposition</span>}
         </motion.div>
       )}
+      {locked && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#14233b]/45 text-navy backdrop-blur-[2px]">
+          <span className={cn("flex items-center justify-center rounded-full bg-white text-navy shadow-md", compact ? "size-8" : "size-12")}>
+            <LockIcon className={compact ? "size-4" : "size-6"} aria-hidden />
+          </span>
+          {!compact && <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-extrabold">Verrouillée temporairement</span>}
+        </motion.div>
+      )}
     </div>
   )
 }
+
+const STATUS: Record<Card["status"], string> = { ACTIVE: "active", LOCKED: "verrouillée temporairement", OPPOSED: "en opposition" }
 
 export function CardStatusPill({ status }: { status: Card["status"] }) {
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold",
-        status === "ACTIVE" ? "bg-ok-soft text-ok" : "bg-brand-soft text-brand",
+        status === "ACTIVE" ? "bg-ok-soft text-ok" : status === "LOCKED" ? "bg-info-soft text-navy" : "bg-brand-soft text-brand",
       )}
     >
-      <span className={cn("size-1.5 rounded-full", status === "ACTIVE" ? "bg-ok" : "bg-brand")} aria-hidden />
-      {status === "ACTIVE" ? "Active" : "En opposition"}
+      {status === "LOCKED" ? <LockIcon className="size-3" aria-hidden /> : <span className={cn("size-1.5 rounded-full", status === "ACTIVE" ? "bg-ok" : "bg-brand")} aria-hidden />}
+      {status === "ACTIVE" ? "Active" : status === "LOCKED" ? "Verrouillée" : "En opposition"}
     </span>
   )
 }

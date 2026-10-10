@@ -389,10 +389,12 @@ async def run_tool_calls(ws, response, run_tool):
     await send(ws, {"type": "response.create"})
 
 
-async def handle_events(ws, player, run_tool):
+async def handle_events(ws, player, run_tool, on_event=None):
     speaking_item = None
     async for message in ws:
         event = json.loads(message)
+        if on_event:  # e.g. bank_tools.Conversation: the user's turns
+            on_event(event)
         match event["type"]:
             case "response.output_audio.delta":
                 player.add(event["item_id"], base64.b64decode(event["delta"]))
@@ -456,7 +458,7 @@ def session_config(args, instructions, tools):
     }
 
 
-async def main(args, instructions, tools, run_tool):
+async def main(args, instructions, tools, run_tool, on_event=None):
     load_dotenv()
     key = os.environ["OPENAI_API_KEY"]
     if args.mic:
@@ -473,7 +475,7 @@ async def main(args, instructions, tools, run_tool):
         await send(ws, {"type": "response.create"})  # let the assistant say hi first
 
         player = Player()
-        tasks = [watch_speakers(player), handle_events(ws, player, run_tool)]
+        tasks = [watch_speakers(player), handle_events(ws, player, run_tool, on_event)]
         if args.push_to_talk:
             talking = asyncio.Event()
             tasks += [
@@ -567,8 +569,9 @@ def parse_args(description):
     return parser.parse_args()
 
 
-def run(args, instructions, tools, run_tool):
-    """Pick the mic and talk until Ctrl+C. Also used by bank_assistant.py."""
+def run(args, instructions, tools, run_tool, on_event=None):
+    """Pick the mic and talk until Ctrl+C. Also used by bank_assistant.py, whose
+    on_event gets every server event."""
     args.laptop_mic = False
     restore = None
     if not (args.mic or args.device):
@@ -580,7 +583,7 @@ def run(args, instructions, tools, run_tool):
     if args.noise_gate is None:  # the laptop mic hears the whole room, a headset's doesn't
         args.noise_gate = -10 if args.laptop_mic else -90
     try:
-        asyncio.run(main(args, instructions, tools, run_tool))
+        asyncio.run(main(args, instructions, tools, run_tool, on_event))
     except KeyboardInterrupt:
         print("\nbye")
     finally:

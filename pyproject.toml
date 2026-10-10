@@ -12,6 +12,10 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    "playwright>=1.63.0",
+    "pytest>=9.1.1",
+]
 server = [
     "fastapi>=0.143.0",
     "httpx>=0.28.1",
@@ -22,4 +26,10 @@ server = [
 ]
 
 [tool.uv]
-default-groups = ["server"]  # uv run uvicorn server:app works out of the box
+default-groups = ["server", "dev"]  # uv run uvicorn server:app and uv run pytest work
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The live tests call the real OpenAI API (cost, varying wording): uv run pytest -m live
+addopts = "-m 'not live'"
+markers = ["live: talks to the real OpenAI API (OPENAI_API_KEY in .env)"]

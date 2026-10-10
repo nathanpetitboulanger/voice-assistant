@@ -15,14 +15,16 @@ RUN apt-get update \
        libharfbuzz-subset0 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /bin/uv
-# RECAPS_DIR: /app isn't writable by nobody; the recaps go when the container restarts.
+# RECAPS_DIR, DB_PATH: /app isn't writable by nobody. The recaps and the sessions
+# (demo logins) go when the container restarts: everyone is a visitor again.
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 \
-    PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 RECAPS_DIR=/tmp/recaps
+    PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 RECAPS_DIR=/tmp/recaps \
+    DB_PATH=/tmp/data/compass.db
 WORKDIR /app
 # Only the server's dependencies: no sounddevice, PortAudio or numpy.
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --only-group server --no-install-project
-COPY server.py bank_tools.py recap_pdf.py demo_customer.py ./
+COPY server.py bank_tools.py bank_store.py recap_pdf.py demo_customer.py ./
 COPY bank_docs/ bank_docs/
 COPY --from=web /web/dist web/dist/
 USER nobody

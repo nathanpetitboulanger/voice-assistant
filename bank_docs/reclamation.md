@@ -2,6 +2,12 @@
 
 Contenu d'exemple pour la démo : les délais, frais et numéros de cette fiche sont fictifs.
 
+Une opération que le client connecté ne reconnaît pas : la retrouver d'abord avec
+search_transactions, et lui en donner la date, le montant et le libellé. Un visiteur non
+connecté ne peut pas déposer de réclamation ici : lui expliquer les étapes et les
+recours, sans recueillir les informations, puis proposer la Connexion démo ou une
+demande de conseiller.
+
 ## Les quatre informations à recueillir
 
 Avant de transmettre la réclamation, il faut les quatre, une question à la fois, en ne
@@ -32,9 +38,10 @@ ne rien transmettre.
 
 ## Les motifs fréquents
 
-- Paiement ou retrait par carte que le client n'a pas fait : fraude possible. D'abord
-  proposer de bloquer la carte (start_request, type card_block), puis finir la
-  réclamation. Délai pour contester : 13 mois après la date de débit. L'opération
+- Paiement ou retrait par carte que le client ne reconnaît pas : une fraude est
+  possible, sans être certaine (un libellé de commerçant peut être trompeur). Proposer
+  de protéger la carte : la verrouiller (start_request, type card_lock), ou faire
+  opposition (card_block) si quelqu'un d'autre l'utilise, puis finir la réclamation. Délai pour contester : 13 mois après la date de débit. L'opération
   frauduleuse est remboursée au plus tard le premier jour ouvré qui suit la
   contestation.
 - Prélèvement contesté : s'il avait été autorisé, remboursement sans justification
@@ -58,8 +65,10 @@ ne rien transmettre.
 
 - Transmettre la réclamation à un conseiller (send_complaint), une fois les quatre
   informations recueillies.
-- Bloquer la carte tout de suite en cas de fraude (start_request, type card_block),
-  puis continuer la réclamation.
+- Verrouiller la carte, ou faire opposition en cas de fraude (start_request, type
+  card_lock ou card_block), puis continuer la réclamation.
+- Pour un visiteur non connecté : expliquer les étapes et les recours ; la réclamation
+  se dépose une fois connecté.
 - Passer la main au service relations clientèle (transfer_to_advisor, équipe
   complaints) si le client le demande ou si le litige est complexe, et au service
   fraude (équipe fraud) en cas de fraude en cours.

@@ -1,38 +1,43 @@
 import { create } from "zustand"
+import { api } from "./api"
 import type { Demarche } from "./types"
 
-// The démarches done with the assistant on this device. No login: they stay in this
-// browser, for as long as the server keeps their recap PDFs (RECAP_LIFETIME).
-const LIFETIME = 24 * 3600 * 1000
+// The démarches of this browser's session, as the server stored them
+// (GET /api/demarches): a customer's (opposition, loan, complaint...), or a visitor's
+// demo requests. Logging out ends the session, and its démarches with it.
 
-function fresh(list: Demarche[]): Demarche[] {
-  return list.filter((d) => Date.now() - d.at < LIFETIME)
+type Stored = Omit<Demarche, "pdf"> & { pdf: string | null }
+
+const useStore = create<{ demarches: Demarche[]; loaded: boolean }>(() => ({ demarches: [], loaded: false }))
+export const useDemarches = useStore // newest first
+
+function toDemarche(d: Stored): Demarche {
+  const pdf = d.pdf ? { url: d.pdf, name: `recapitulatif-${d.kind}-${d.reference.replaceAll(" ", "-")}.pdf` } : undefined
+  return { ...d, pdf }
 }
 
-function load(): Demarche[] {
+export async function refreshDemarches() {
   try {
-    const saved = JSON.parse(localStorage.getItem("demarches") ?? "[]")
-    return Array.isArray(saved) ? fresh(saved) : []
+    const { demarches } = await api<{ demarches: Stored[] }>("/api/demarches")
+    useStore.setState({ demarches: demarches.map(toDemarche), loaded: true })
   } catch {
-    return []
+    useStore.setState({ loaded: true })
   }
 }
 
-export const useDemarches = create<{ demarches: Demarche[] }>(() => ({ demarches: load() })) // newest first
-
-function save(demarches: Demarche[]) {
-  useDemarches.setState({ demarches })
-  try {
-    localStorage.setItem("demarches", JSON.stringify(demarches))
-  } catch {
-    /* kept for this visit only */
-  }
+export async function clearDemarches() {
+  await api("/api/demarches", { method: "DELETE" })
+  useStore.setState({ demarches: [] })
 }
 
-export function addDemarche(demarche: Demarche) {
-  save([demarche, ...fresh(useDemarches.getState().demarches).filter((d) => d.reference !== demarche.reference)])
+export function resetDemarches() {
+  useStore.setState({ demarches: [], loaded: false })
 }
 
-export function clearDemarches() {
-  save([])
+/** What the status means, said plainly: everything here is simulated. */
+export const STATUS_LABEL: Record<string, string> = {
+  done: "Effectuée (simulation)",
+  requested: "Demandée (simulation)",
+  transmitted: "Transmise (simulation)",
+  demo_request: "Demande de démonstration enregistrée",
 }

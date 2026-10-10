@@ -106,7 +106,7 @@ mille euros", "On m'a prélevé des frais que je ne comprends pas".
 
 ## On the web (by voice or in writing)
 
-https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no login): the
+https://voice-assistant.nathan-petitboulanger.fr (a public home, then a demo login): the
 front of IAIMPACT (BPCE Compass), a mobile banking app in a Caisse d'Épargne-inspired
 look (red `#c8102e`, navy `#14233b`, the Manrope font), marked « Prototype de
 démonstration ». The assistant, Compass, is a layer over the whole app rather than a
@@ -115,13 +115,26 @@ the result. On a phone it fills the screen; on a computer it sits in a phone fra
 with a demo panel on the right (DEMO ONLY: the journeys to replay, and the tools the
 server ran, live) and, on a wide screen, the pitch on the left.
 
-- The bank's screens show a fictional customer, Camille Martin (`GET /api/customer`,
-  `demo_customer.py`, the same for everyone): Accueil (balances, the four démarches to
-  tap, her card, the latest operations), Comptes, Opérations (search, filters, the
-  detail of an operation), Cartes, Mes démarches, Profil. They are read-only: what can
-  be done goes through Compass, which still can't give a balance (its instructions
-  didn't change). « Je ne reconnais pas cette opération », on an operation, asks
-  Compass with its details: a complaint.
+- A visitor (no session) lands on the public home: « Comment pouvons-nous vous
+  aider ? », Compass by voice or in writing, frequent questions (loan, forgotten
+  password, complaint, advisor, opening an account), a demo advisor request (reviewed,
+  then confirmed or cancelled; it says no real advisor will call), accessibility
+  settings, and « Connexion démo ». No account data: the private pages show « Connexion
+  requise », the API answers 401, and a visitor's Compass has no tool to read an
+  account (it offers the login instead).
+- « Connexion démo »: a fictional profile (Camille Martin, or Lucas Bernard to show one
+  customer can't reach another's data) and the code shown in the dialog
+  (`DEMO_ACCESS_CODE`, default `compass`). Never a real bank's credentials. The server
+  opens a session (HttpOnly cookie, `bank_store.py`); logout revokes it. Each login is
+  its own sandbox: what you do (a card locked, démarches) lasts until logout, so two
+  people demoing at once don't see each other's changes, and logging out resets it.
+- The bank's screens show the logged-in customer (`GET /api/customer`,
+  `demo_customer.py`): Accueil (balances, the démarches to tap, her card, the latest
+  operations), Comptes, Opérations (search, filters, the detail of an operation),
+  Cartes (lock or unlock a card, with a yes on screen), Mes démarches, Profil (and
+  « Se déconnecter »). Compass reads the same data (balances, operations, cards), so the
+  screens and the assistant never disagree. « Je ne reconnais pas cette opération », on
+  an operation, asks Compass with its details. No transfers: Compass says so.
 - Compass, the bottom bar's middle button, the bar under the greeting, or the « …avec
   Compass » buttons: a sheet over the app, in two modes with the same assistant
   (instructions, tools, one démarche at a time):
@@ -134,26 +147,29 @@ server ran, live) and, on a wide screen, the pitch on the left.
     « Pièce bruyante » (Profil): the orb becomes « Parler », then « Envoyer ». Keep the
     screen on during a call (the page asks the phone to): a locked phone stops the mic.
     A question tapped in the app during a call is asked in the call.
-  In both, each tool shows as a chip, a loan simulation as a card, and each démarche
-  as a card with its reference and recap PDF. The sheet folds into a bar above the
-  menu, and a call or a chat goes on while you browse.
-- The app responds: after a card block, it opens Cartes, where the card shows as
-  opposed, with the reference; after any other démarche, it opens Mes démarches on it.
+  In both, each tool shows as a chip; a loan simulation, the balances and the
+  operations found as cards; an action Compass prepared (lock a card, opposition,
+  complaint, advisor...) as a card with « Confirmer » and « Annuler », done only after
+  the customer's yes, said, typed or tapped; and each démarche as a card with its
+  reference and recap PDF. The sheet folds into a bar, and a call or a chat goes on
+  while you browse. Ending a call with the keyboard button opens the written chat where
+  the call stopped. The book button: « Explications simples » (short sentences).
+- The app responds: after a card action, it opens Cartes, where the card shows as
+  locked or opposed; after any other démarche, it opens Mes démarches on it.
 - Mes démarches: what Compass did (opposition, loan passed on, complaint...), with the
-  reference number and the PDF. No login: kept in this browser for 24 hours, like the
-  PDFs on the server, and nothing personal (no income, age or facts). The card shows
-  as opposed for as long as its démarche is kept.
-- Profil: text size, high contrast, reduced motion, what the Compass button opens
-  (writing or voice), Compass's voice (`marin` or `cedar`, `?voice=` on
-  `/api/session`), « Pièce bruyante ».
+  reference number, the status (all simulated) and the PDF, stored for the session.
+- Profil: text size, high contrast, reduced motion, simple explanations, what the
+  Compass button opens (writing or voice), Compass's voice (`marin` or `cedar`,
+  `?voice=` on `/api/session`), « Pièce bruyante », « Se déconnecter ».
 
 How it works: by voice, the phone talks to the Realtime API directly over WebRTC.
-`server.py` (FastAPI) forwards its offer to OpenAI with the API key and the session
-(same instructions and tools as the terminal version), then joins the call over a
-WebSocket to run the tools of `bank_tools.py`. Audio never goes through the server.
+`server.py` (FastAPI) forwards its offer to OpenAI with the API key and the
+instructions and tools of this browser's session (a visitor's or a customer's), then
+joins the call over a WebSocket to run the tools of `bank_tools.py`, checking the
+session again before each private one. Audio never goes through the server.
 Phones only allow the mic over HTTPS (or on `localhost`). In writing, the page opens a
 WebSocket to `server.py` (`/api/chat`), which opens a text-only Realtime session (same
-model, `TEXT_INSTRUCTIONS`: the instructions plus a few lines on writing), relays the
+model and session's tools, the instructions plus a few lines on writing), relays the
 customer's messages and the answers, and runs the tools the same way. `web/` is the
 React page (Vite, Tailwind, motion, zustand), ported from IAIMPACT's Next.js front;
 `server.py` serves it, and `index.html` for its paths (`/cartes`...).
@@ -165,8 +181,9 @@ docker compose up --build             # the production image, on http://localhos
 ./deploy/deploy.sh                    # build, ship to the VPS, start, check /api/health
 ```
 
-`.env`: `OPENAI_API_KEY`, `APP_PORT` (see
-`.env.example`). On the VPS: `/root/code/voice-assistant`, port 8098 on loopback,
+`.env`: `OPENAI_API_KEY`, `APP_PORT`, optionally `DEMO_ACCESS_CODE` and `DB_PATH` (see
+`.env.example`). Tests: `uv run pytest` (needs `web/dist`), `uv run pytest -m live`
+(the real model, text and voice). Live demo: see `DEMO.md`. On the VPS: `/root/code/voice-assistant`, port 8098 on loopback,
 behind the host Nginx (`deploy/nginx-host.conf.template`). The written chat is a
 WebSocket: Nginx needs the `location /api/chat` block of the template (Upgrade
 headers), or the chat says it can't reach the assistant.

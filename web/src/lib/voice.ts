@@ -139,7 +139,7 @@ function onEvent(e: ServerEvent) {
 export async function startVoice() {
   if (pc || useVoice.getState().status === "connecting") return
   const mine = ++call
-  const { voice, pushToTalk } = usePrefs.getState()
+  const { voice, pushToTalk, simple } = usePrefs.getState()
   useVoice.setState({ status: "connecting", error: null, muted: false, pushToTalk, talking: false })
   tools.reset()
   turn = null
@@ -195,7 +195,8 @@ export async function startVoice() {
 
     const offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
-    const response = await fetch(`/api/session?ptt=${pushToTalk ? 1 : 0}&voice=${voice}`, {
+    // The server gives the call the tools of this browser's session (cookie).
+    const response = await fetch(`/api/session?ptt=${pushToTalk ? 1 : 0}&voice=${voice}&simple=${simple ? 1 : 0}`, {
       method: "POST",
       headers: { "Content-Type": "application/sdp" },
       body: offer.sdp,

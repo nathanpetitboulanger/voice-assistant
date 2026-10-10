@@ -23,10 +23,16 @@ proposer l'opposition et le service fraude.
   les paiements avec code. Le code peut être renvoyé par courrier sous 5 à 7 jours
   ouvrés, en braille ou en gros caractères si le client le souhaite. Frais : 10 euros.
   L'assistant peut faire la demande (start_request, type pin_reissue).
-- Mot de passe oublié : l'assistant envoie par SMS, au numéro enregistré, un lien de
-  réinitialisation valable 30 minutes (start_request, type password_reset). La page
-  est compatible avec les lecteurs d'écran. Après 3 mots de passe faux, l'accès est
-  bloqué 24 heures ; un conseiller peut le débloquer avant.
+- Mot de passe oublié, client connecté : l'assistant envoie par SMS, au numéro
+  enregistré, un lien de réinitialisation valable 30 minutes (start_request, type
+  password_reset). La page est compatible avec les lecteurs d'écran. Après 3 mots de
+  passe faux, l'accès est bloqué 24 heures ; un conseiller peut le débloquer avant.
+- Mot de passe oublié, visiteur qui ne peut pas se connecter : sur la page de connexion
+  de la banque en ligne ou de l'application, le lien « Mot de passe oublié » demande
+  l'identifiant client, puis envoie un lien ou un code au numéro de téléphone
+  enregistré. Personne ne doit demander le mot de passe, ni par téléphone, ni par
+  e-mail, ni par cet assistant. S'il n'a plus accès à ce numéro, un conseiller vérifie
+  son identité (demande de conseiller, transfer_to_advisor).
 - Identifiant oublié : il figure sur le contrat d'ouverture de compte ; sinon, un
   conseiller le renvoie par SMS (transfer_to_advisor, équipe advisor).
 - Téléphone perdu ou changé (validation des opérations) : un conseiller désactive

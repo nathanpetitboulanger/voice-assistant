@@ -36,12 +36,22 @@ export const TOPICS: Topic[] = [
   },
 ]
 
-// Under the greeting of a new written conversation.
+// Under the greeting of a new written conversation, for a logged-in customer.
 export const SUGGESTIONS = [
+  "Quel est mon solde ?",
   "J'ai perdu ma carte",
+  "Je ne reconnais pas un paiement de 89 euros",
   "Simuler un crédit",
   "Faire une réclamation",
-  "J'ai oublié mon code",
-  "Épargner",
   "Parler à un conseiller",
+]
+
+// The public home's questions, and a visitor's new conversation: nothing that needs an
+// account, except the one that shows the Connexion démo.
+export const PUBLIC_SUGGESTIONS = [
+  "Je souhaite simuler un crédit.",
+  "J'ai oublié mon mot de passe.",
+  "Je veux faire une réclamation.",
+  "Je voudrais parler à un conseiller.",
+  "Comment ouvrir un compte ?",
 ]

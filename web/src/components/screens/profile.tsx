@@ -1,4 +1,6 @@
-import { AccessibilityIcon, EarIcon, KeyboardIcon, LockIcon, MicIcon, ShieldCheckIcon, Trash2Icon, Volume2Icon } from "lucide-react"
+import { useState } from "react"
+import { EarIcon, KeyboardIcon, LoaderCircleIcon, LockIcon, LogOutIcon, MicIcon, ShieldCheckIcon, Trash2Icon, Volume2Icon } from "lucide-react"
+import { logout } from "@/lib/auth"
 import { closeChat } from "@/lib/chat"
 import { useCustomer } from "@/lib/customer"
 import { clearDemarches } from "@/lib/demarches"
@@ -10,19 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/shell/toast"
 import { usePage } from "@/components/shell/use-page"
 import { useHighlight } from "@/components/shell/highlight"
-
-function Row({ icon: Icon, label, hint, children }: { icon?: React.ComponentType<{ className?: string }>; label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-14 items-center gap-3 py-2">
-      {Icon && <Icon className="size-5 shrink-0 text-navy" aria-hidden />}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-navy">{label}</p>
-        {hint && <p className="text-xs text-muted-ink">{hint}</p>}
-      </div>
-      {children}
-    </div>
-  )
-}
+import { AccessibilitySettings, SettingRow as Row } from "@/components/settings/accessibility"
 
 function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string; icon?: React.ComponentType<{ className?: string }> }[]; onChange: (v: T) => void }) {
   return (
@@ -52,6 +42,7 @@ export function ProfileScreen() {
   const { data } = useCustomer()
   const prefs = usePrefs()
   const a11yHl = useHighlight("accessibility")
+  const [leaving, setLeaving] = useState(false)
   const set = (change: Partial<Preferences>, message?: string) => {
     savePrefs(change)
     if (message) toast(message)
@@ -65,41 +56,27 @@ export function ProfileScreen() {
           <Panel className="flex items-center gap-4">
             <span className="flex size-14 items-center justify-center rounded-full bg-navy text-lg font-extrabold text-white">{data?.customer.initials ?? "…"}</span>
             <div className="flex-1">
-              <p className="text-lg font-extrabold text-navy">{data?.customer.displayName ?? "Cliente de démonstration"}</p>
+              <p className="text-lg font-extrabold text-navy">{data?.customer.displayName ?? "…"}</p>
               <p className="text-xs text-muted-ink">Session de démonstration · profil fictif</p>
             </div>
           </Panel>
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={async () => {
+              setLeaving(true)
+              await logout()
+            }}
+            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white font-bold text-brand ring-1 ring-line hover:bg-brand-soft disabled:opacity-60"
+          >
+            {leaving ? <LoaderCircleIcon className="size-5 animate-spin" aria-hidden /> : <LogOutIcon className="size-5" aria-hidden />}
+            Se déconnecter
+          </button>
         </Section>
 
         <Section title="Accessibilité">
           <Panel {...a11yHl} className="flex flex-col divide-y divide-line py-1">
-            <div className="py-3">
-              <p id="ts-label" className="mb-2 text-sm font-bold text-navy">
-                Taille du texte
-              </p>
-              <div role="radiogroup" aria-labelledby="ts-label" className="grid grid-cols-3 gap-2">
-                {([1, 1.15, 1.3] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    role="radio"
-                    aria-checked={prefs.textScale === s}
-                    onClick={() => set({ textScale: s })}
-                    className={cn("h-12 rounded-xl font-extrabold", prefs.textScale === s ? "bg-navy text-white" : "bg-surface text-navy")}
-                    style={{ fontSize: `${14 * s}px` }}
-                  >
-                    {s === 1 ? "A" : s === 1.15 ? "A+" : "A++"}
-                    <span className="sr-only">{` ${Math.round(s * 100)} %`}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Row icon={AccessibilityIcon} label="Contraste élevé" hint="Textes et contours plus marqués">
-              <Switch checked={prefs.highContrast} onCheckedChange={(v) => set({ highContrast: v })} aria-label="Contraste élevé" />
-            </Row>
-            <Row label="Réduire les animations" hint="Respecte aussi le réglage de votre appareil">
-              <Switch checked={prefs.reducedMotion} onCheckedChange={(v) => set({ reducedMotion: v })} aria-label="Réduire les animations" />
-            </Row>
+            <AccessibilitySettings />
           </Panel>
         </Section>
 
@@ -160,16 +137,20 @@ export function ProfileScreen() {
         <Section title="Confidentialité">
           <Panel className="flex flex-col gap-3 text-sm text-navy">
             <p>
-              Pour répondre, Compass transmet vos messages et votre voix à OpenAI (Realtime). Les récapitulatifs PDF, avec vos réponses, restent 24 heures sur le serveur. La liste de vos démarches reste 24
-              heures sur cet appareil, sans rien de personnel.
+              Pour répondre, Compass transmet vos messages et votre voix à OpenAI (Realtime) ; les numéros de carte ou de téléphone écrits par erreur sont masqués avant. Les récapitulatifs PDF,
+              avec vos réponses, restent 24 heures sur le serveur, pour vous seul·e. Vos démarches restent le temps de la session : la déconnexion les efface.
             </p>
             <p className="text-xs text-muted-ink">Prototype : données fictives. Aucune conformité réglementaire n&apos;est revendiquée.</p>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 closeChat(voiceActive())
-                clearDemarches()
-                toast("Conversation et démarches effacées.")
+                try {
+                  await clearDemarches()
+                  toast("Conversation et démarches effacées.")
+                } catch {
+                  toast("Les démarches n'ont pas pu être effacées. Réessayez.", "error")
+                }
               }}
               className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-surface font-bold text-navy hover:bg-line"
             >

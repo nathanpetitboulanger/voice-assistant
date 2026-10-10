@@ -1,11 +1,11 @@
 import { create } from "zustand"
-import type { AppPage, AssistantCard, Highlight, TraceEvent } from "./types"
+import type { ActionState, AppPage, AssistantCard, Highlight, TraceEvent } from "./types"
 
 export interface ToolChip {
   id: string // the tool call's call_id
   name: string
   label: string
-  status: "running" | "ok" | "waiting" | "error"
+  status: "running" | "ok" | "waiting" | "error" | "cancelled"
 }
 
 export interface UIMessage {
@@ -32,6 +32,7 @@ interface CompassState {
   page: AppPage
   highlight: { target: Highlight; nonce: number } | null
   trace: TraceEvent[] // newest first, for the demo panel
+  actions: Record<string, ActionState> // the prepared actions, by id: their buttons
   setSheet: (m: SheetMode) => void
   setVoice: (v: boolean) => void
   setHighlight: (h: Highlight | null) => void
@@ -47,6 +48,7 @@ export const useCompass = create<CompassState>((set) => ({
   page: "accueil",
   highlight: null,
   trace: [],
+  actions: {},
   setSheet: (sheet) => set({ sheet }),
   setVoice: (voice) => set({ voice }),
   setHighlight: (h) => set({ highlight: h ? { target: h, nonce: Date.now() } : null }),

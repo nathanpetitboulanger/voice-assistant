@@ -1,6 +1,8 @@
-import { BanIcon, EyeOffIcon, GaugeIcon, GlobeIcon, KeyRoundIcon, NfcIcon, ShieldAlertIcon, SparklesIcon } from "lucide-react"
+import { useState } from "react"
+import { BanIcon, EyeOffIcon, GaugeIcon, GlobeIcon, KeyRoundIcon, LoaderCircleIcon, LockIcon, NfcIcon, ShieldAlertIcon, SparklesIcon, UnlockIcon } from "lucide-react"
+import { api, ApiError } from "@/lib/api"
 import { askCompass } from "@/lib/compass"
-import { useCustomer } from "@/lib/customer"
+import { refreshCustomer, useCustomer } from "@/lib/customer"
 import { formatEUR } from "@/lib/format"
 import { Link, navigate, useLocation } from "@/lib/router"
 import { cn } from "@/lib/utils"
@@ -8,15 +10,77 @@ import { BankCardVisual, CardStatusPill } from "@/components/bank/bank-card"
 import { LoadError, Panel, ScreenHeader, Section, SkeletonRows } from "@/components/bank/ui"
 import { usePage } from "@/components/shell/use-page"
 import { useHighlight } from "@/components/shell/highlight"
+import { Sheet } from "@/components/shell/sheet"
+import { toast } from "@/components/shell/toast"
+import type { Card } from "@/lib/types"
 
-// The cards are read-only here: what can be done on them (an opposition, a new code)
-// goes through Compass, which asks for the customer's yes first, by voice or in writing.
+/** Lock or unlock a card here, after a yes on screen: the server changes it
+ * (POST /api/cards/<id>/lock|unlock), and Compass reads the same status. */
+function LockDialog({ card, onClose }: { card: Card | null; onClose: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const unlock = card?.status === "LOCKED"
+  async function confirm() {
+    if (!card || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api(`/api/cards/${encodeURIComponent(card.id)}/${unlock ? "unlock" : "lock"}`, { method: "POST", body: {} })
+      refreshCustomer()
+      toast(unlock ? "Carte déverrouillée" : "Carte verrouillée")
+      onClose()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "L'action n'a pas abouti. Réessayez.")
+      refreshCustomer() // its status may have changed meanwhile
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Sheet
+      open={!!card}
+      onClose={() => {
+        setError(null)
+        onClose()
+      }}
+      title={unlock ? "Déverrouiller la carte ?" : "Verrouiller la carte ?"}
+      description={card ? `${card.label} •••• ${card.maskedNumber}` : undefined}
+    >
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-navy">
+          {unlock
+            ? "Elle fonctionnera de nouveau tout de suite : paiements et retraits."
+            : "Temporaire : paiements et retraits seront refusés jusqu'à ce que vous la déverrouilliez. Ce n'est pas une opposition : si elle est perdue pour de bon ou volée, faites opposition avec Compass."}
+        </p>
+        {error && (
+          <p role="alert" className="rounded-2xl bg-brand-soft p-3 text-sm font-semibold text-brand">
+            {error}
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onClose} className="h-12 rounded-2xl font-bold text-navy ring-1 ring-line hover:bg-surface">
+            Annuler
+          </button>
+          <button type="button" data-autofocus onClick={confirm} disabled={busy} aria-busy={busy} className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-navy font-bold text-white hover:bg-navy-2 disabled:opacity-60">
+            {busy ? <LoaderCircleIcon className="size-5 animate-spin" aria-hidden /> : unlock ? <UnlockIcon className="size-5" aria-hidden /> : <LockIcon className="size-5" aria-hidden />}
+            {unlock ? "Déverrouiller" : "Verrouiller"}
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
+// What can be done on a card: a temporary lock here, with a yes on screen; an opposition
+// or a new code through Compass, which asks for the customer's yes, by voice or in
+// writing. The server does both, on this session's cards only.
 export function CardsScreen() {
   usePage("cartes")
   const { params } = useLocation()
   const { data, error, retry, opposition } = useCustomer()
   const statusHl = useHighlight("card-status")
   const securityHl = useHighlight("card-security")
+  const [locking, setLocking] = useState<Card | null>(null)
 
   if (!data)
     return (
@@ -36,6 +100,7 @@ export function CardsScreen() {
   const cards = data.cards
   const card = cards.find((c) => c.id === params.get("card")) ?? cards.find((c) => c.kind === "PHYSICAL") ?? cards[0]
   const opposed = card.status === "OPPOSED"
+  const locked = card.status === "LOCKED"
   const used = Math.min(100, (card.spentThisPeriodCents / card.paymentLimitCents) * 100)
 
   return (
@@ -82,6 +147,27 @@ export function CardsScreen() {
                 </Link>
               </Panel>
             )}
+            {locked && (
+              <Panel className="flex flex-col gap-1 bg-info-soft shadow-none" role="status">
+                <p className="flex items-center gap-2 text-sm font-extrabold text-navy">
+                  <LockIcon className="size-5" aria-hidden /> Carte verrouillée temporairement
+                </p>
+                <p className="text-xs text-navy">Paiements et retraits sont refusés. Vous pouvez la déverrouiller à tout moment.</p>
+              </Panel>
+            )}
+            {!opposed && (
+              <button
+                type="button"
+                onClick={() => setLocking(card)}
+                className="hc-outline flex min-h-14 w-full items-center gap-3 rounded-2xl bg-white px-4 text-left shadow-sm ring-1 ring-line hover:bg-surface"
+              >
+                {locked ? <UnlockIcon className="size-5 text-navy" aria-hidden /> : <LockIcon className="size-5 text-navy" aria-hidden />}
+                <span className="flex-1">
+                  <span className="block text-sm font-extrabold text-navy">{locked ? "Déverrouiller la carte" : "Verrouiller temporairement"}</span>
+                  <span className="block text-xs text-muted-ink">{locked ? "Elle fonctionnera de nouveau tout de suite" : "Carte égarée ? Vous pourrez la déverrouiller"}</span>
+                </span>
+              </button>
+            )}
           </div>
         </Section>
 
@@ -126,8 +212,8 @@ export function CardsScreen() {
                 <span className="tabular font-bold text-navy">{formatEUR(card.withdrawalLimitCents)}</span>
               </p>
             )}
-            <button type="button" onClick={() => askCompass("Je voudrais modifier le plafond de ma carte")} disabled={opposed} className="h-11 rounded-2xl bg-surface text-sm font-bold text-navy hover:bg-line disabled:opacity-50">
-              Modifier mon plafond avec Compass
+            <button type="button" onClick={() => askCompass("J'ai une question sur le plafond de ma carte")} disabled={opposed} className="h-11 rounded-2xl bg-surface text-sm font-bold text-navy hover:bg-line disabled:opacity-50">
+              Une question sur mon plafond ? Compass
             </button>
           </Panel>
         </Section>
@@ -141,8 +227,8 @@ export function CardsScreen() {
               <p key={o.label} className="flex min-h-14 items-center gap-3">
                 <o.icon className="size-5 text-navy" aria-hidden />
                 <span className="flex-1 text-sm font-bold text-navy">{o.label}</span>
-                <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", o.value && !opposed ? "bg-ok-soft text-ok" : "bg-surface text-muted-ink")}>
-                  {o.value && !opposed ? "Activé" : "Désactivé"}
+                <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", o.value && card.status === "ACTIVE" ? "bg-ok-soft text-ok" : "bg-surface text-muted-ink")}>
+                  {o.value && card.status === "ACTIVE" ? "Activé" : "Désactivé"}
                 </span>
               </p>
             ))}
@@ -172,6 +258,7 @@ export function CardsScreen() {
           </Panel>
         </Section>
       </div>
+      <LockDialog card={locking} onClose={() => setLocking(null)} />
     </div>
   )
 }

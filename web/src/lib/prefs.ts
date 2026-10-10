@@ -9,6 +9,7 @@ export interface Preferences {
   voice: "marin" | "cedar" // the assistant's voice on the next call (server.py VOICES)
   pushToTalk: boolean // noisy room: « Parler » then « Envoyer », no voice detection
   mode: Mode // what the Compass button opens
+  simple: boolean // Compass explains in short sentences and everyday words
 }
 
 const DEFAULTS: Preferences = {
@@ -18,6 +19,7 @@ const DEFAULTS: Preferences = {
   voice: "marin",
   pushToTalk: false,
   mode: "text",
+  simple: false,
 }
 
 function load(): Preferences {

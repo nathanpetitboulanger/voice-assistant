@@ -1,11 +1,13 @@
 import { useEffect } from "react"
 import { create } from "zustand"
+import { api } from "./api"
+import { useAuth } from "./auth"
 import { useDemarches } from "./demarches"
 import type { CustomerData } from "./types"
 
-// The fictional customer the screens show (GET /api/customer, the same for everyone),
-// plus what the assistant did in this browser: after a card block (opposition), the
-// physical card shows as opposed, for as long as the démarche is kept.
+// The logged-in demo customer's data (GET /api/customer, only for their session): the
+// screens and the assistant's tools read the same, card statuses included. Nothing is
+// fetched for a visitor, and the server would refuse it anyway.
 
 const useStore = create<{ data: CustomerData | null; error: boolean; loading: boolean }>(() => ({
   data: null,
@@ -13,27 +15,39 @@ const useStore = create<{ data: CustomerData | null; error: boolean; loading: bo
   loading: false,
 }))
 
+let generation = 0 // a reset during a fetch: its answer is someone else's, dropped
+
 async function load() {
   if (useStore.getState().loading) return
+  const mine = generation
   useStore.setState({ loading: true, error: false })
   try {
-    const res = await fetch("/api/customer")
-    if (!res.ok) throw new Error(String(res.status))
-    useStore.setState({ data: await res.json() })
+    const data = await api<CustomerData>("/api/customer")
+    if (mine === generation) useStore.setState({ data })
   } catch {
-    useStore.setState({ error: true })
+    if (mine === generation) useStore.setState({ error: true })
   } finally {
-    useStore.setState({ loading: false })
+    if (mine === generation) useStore.setState({ loading: false })
   }
+}
+
+/** After an action (a card locked by Compass or on the Cartes screen). */
+export function refreshCustomer() {
+  if (useAuth.getState().status === "customer") void load()
+}
+
+/** Logout or a new login: the previous customer's data goes at once. */
+export function resetCustomer() {
+  generation++
+  useStore.setState({ data: null, error: false, loading: false })
 }
 
 export function useCustomer() {
   const { data, error } = useStore()
+  const customer = useAuth((s) => s.status === "customer")
   const opposition = useDemarches((s) => s.demarches.find((d) => d.kind === "card_block"))
   useEffect(() => {
-    if (!useStore.getState().data) void load()
-  }, [])
-  if (!data) return { data: null, error, retry: load, opposition }
-  const cards = data.cards.map((c) => (opposition && c.kind === "PHYSICAL" ? { ...c, status: "OPPOSED" as const } : c))
-  return { data: { ...data, cards }, error, retry: load, opposition }
+    if (customer && !useStore.getState().data) void load()
+  }, [customer])
+  return { data: customer ? data : null, error, retry: load, opposition }
 }
