@@ -28,7 +28,7 @@ const showAccessibility = () => setTimeout(() => useCompass.getState().setHighli
 
 function CompassBar() {
   return (
-    <div className="mx-4 flex items-center gap-2 rounded-full bg-white p-1.5 pl-4 shadow-[0_6px_24px_-10px_rgba(20,35,59,0.35)] ring-1 ring-line">
+    <div className="mx-4 flex items-center gap-2 rounded-full bg-white p-1.5 pl-4 shadow-[0_6px_24px_-10px_rgba(8,13,52,0.35)] ring-1 ring-line">
       <SparklesIcon className="size-5 shrink-0 text-brand" aria-hidden />
       <button
         type="button"
@@ -102,7 +102,7 @@ export function HomeScreen() {
       <Section title="Mes comptes" action={<Link href="/comptes" className="text-sm font-bold text-brand">Tout voir</Link>}>
         <div className="flex flex-col gap-3">
           {main && (
-            <Link href={`/comptes?account=${main.id}`} {...balanceHl} className="relative block overflow-hidden rounded-3xl bg-navy p-5 text-white shadow-[0_18px_30px_-16px_rgba(20,35,59,0.7)]">
+            <Link href={`/comptes?account=${main.id}`} {...balanceHl} className="relative block overflow-hidden rounded-3xl bg-navy p-5 text-white shadow-[0_18px_30px_-16px_rgba(8,13,52,0.7)]">
               <svg aria-hidden className="absolute -right-16 -top-16 size-56 opacity-[0.07]" viewBox="0 0 200 200">
                 <circle cx="100" cy="100" r="88" fill="none" stroke="white" strokeWidth="22" />
               </svg>

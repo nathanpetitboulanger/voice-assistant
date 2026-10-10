@@ -13,8 +13,8 @@ export function BankCardVisual({ card, compact }: { card: Card; compact?: boolea
       role="img"
       aria-label={`${card.label} ${card.maskedNumber}, ${STATUS[card.status]}`}
       className={cn(
-        "relative aspect-[1.586/1] w-full overflow-hidden rounded-[22px] p-5 text-white shadow-[0_18px_30px_-14px_rgba(20,35,59,0.55)]",
-        virtual ? "bg-[linear-gradient(135deg,#22365a_0%,#14233b_100%)]" : "bg-[linear-gradient(135deg,#d11a37_0%,#9e0b23_100%)]",
+        "relative aspect-[1.586/1] w-full overflow-hidden rounded-[22px] p-5 text-white shadow-[0_18px_30px_-14px_rgba(8,13,52,0.55)]",
+        virtual ? "bg-[linear-gradient(135deg,#051b71_0%,#000c3c_100%)]" : "bg-[linear-gradient(135deg,#3954c0_0%,#062499_100%)]",
         compact && "rounded-2xl p-3.5",
       )}
     >
@@ -29,7 +29,7 @@ export function BankCardVisual({ card, compact }: { card: Card; compact?: boolea
         </div>
         {!compact && (
           <div className="flex items-center gap-2">
-            {!virtual && <div className="h-7 w-10 rounded-md bg-[linear-gradient(135deg,#f6e3a4,#c9a84f)] opacity-90" />}
+            {!virtual && <div className="h-7 w-10 rounded-md bg-[linear-gradient(135deg,#e5bd77,#bd8a00)] opacity-90" />}
             {card.contactless && <NfcIcon className="size-5 opacity-70" aria-hidden />}
           </div>
         )}
@@ -45,7 +45,7 @@ export function BankCardVisual({ card, compact }: { card: Card; compact?: boolea
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#2a3446]/55 text-navy backdrop-blur-[3px]"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#454545]/55 text-navy backdrop-blur-[3px]"
         >
           <span className={cn("flex items-center justify-center rounded-full bg-white text-brand shadow-md", compact ? "size-8" : "size-12")}>
             <BanIcon className={compact ? "size-4" : "size-6"} aria-hidden />
@@ -54,7 +54,7 @@ export function BankCardVisual({ card, compact }: { card: Card; compact?: boolea
         </motion.div>
       )}
       {locked && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#14233b]/45 text-navy backdrop-blur-[2px]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#080d34]/45 text-navy backdrop-blur-[2px]">
           <span className={cn("flex items-center justify-center rounded-full bg-white text-navy shadow-md", compact ? "size-8" : "size-12")}>
             <LockIcon className={compact ? "size-4" : "size-6"} aria-hidden />
           </span>

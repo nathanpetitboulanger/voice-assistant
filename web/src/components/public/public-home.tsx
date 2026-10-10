@@ -29,7 +29,7 @@ export function PublicHome() {
         <DemoBadge />
       </div>
       <header className="flex items-center gap-3 px-4">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-12px_rgba(200,16,46,0.8)]" aria-hidden>
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-12px_rgba(6,36,153,0.8)]" aria-hidden>
           <CompassMark className="size-6" />
         </span>
         <div className="min-w-0 flex-1">
@@ -41,7 +41,7 @@ export function PublicHome() {
         </button>
       </header>
 
-      <section aria-labelledby="hero-title" className="relative mx-4 overflow-hidden rounded-[28px] bg-navy p-5 text-white shadow-[0_18px_30px_-16px_rgba(20,35,59,0.7)]">
+      <section aria-labelledby="hero-title" className="relative mx-4 overflow-hidden rounded-[28px] bg-navy p-5 text-white shadow-[0_18px_30px_-16px_rgba(8,13,52,0.7)]">
         <svg aria-hidden className="absolute -right-16 -top-16 size-56 opacity-[0.07]" viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="88" fill="none" stroke="white" strokeWidth="22" />
         </svg>

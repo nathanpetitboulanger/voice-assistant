@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <BrandColumn />
         {/* Phone: full screen on mobile, framed device on desktop */}
         <div className="relative w-full lg:w-auto">
-          <div className="relative mx-auto h-[100dvh] w-full overflow-hidden bg-white lg:h-[min(844px,calc(100dvh-40px))] lg:w-[390px] lg:rounded-[54px] lg:shadow-[0_0_0_11px_#0d1524,0_0_0_13px_#2a3446,0_40px_80px_-20px_rgba(20,35,59,0.45)]">
+          <div className="relative mx-auto h-[100dvh] w-full overflow-hidden bg-white lg:h-[min(844px,calc(100dvh-40px))] lg:w-[390px] lg:rounded-[54px] lg:shadow-[0_0_0_11px_#080d34,0_0_0_13px_#424d77,0_40px_80px_-20px_rgba(8,13,52,0.45)]">
             <div id="app-viewport" className="relative flex h-full flex-col overflow-hidden bg-white">
               <a
                 href="#main"

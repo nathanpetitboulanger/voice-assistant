@@ -8,18 +8,18 @@ import type { Transaction } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const CAT: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string; fg: string }> = {
-  Alimentation: { icon: ShoppingCartIcon, bg: "bg-[#eaf4ee]", fg: "text-[#16805d]" },
-  Restaurants: { icon: UtensilsIcon, bg: "bg-[#fff1e6]", fg: "text-[#c4520f]" },
-  Transports: { icon: TrainFrontIcon, bg: "bg-[#e9f0fb]", fg: "text-[#2f5cad]" },
-  Abonnements: { icon: TvIcon, bg: "bg-[#f1ecfb]", fg: "text-[#6941c6]" },
-  Logement: { icon: HouseIcon, bg: "bg-[#eef1f5]", fg: "text-[#344054]" },
-  Santé: { icon: HeartPulseIcon, bg: "bg-[#fdecef]", fg: "text-[#c8102e]" },
-  Shopping: { icon: ShoppingBagIcon, bg: "bg-[#fdf0f7]", fg: "text-[#b42373]" },
-  Revenus: { icon: BanknoteIcon, bg: "bg-[#e7f5ef]", fg: "text-[#16805d]" },
-  "Virements reçus": { icon: ArrowDownLeftIcon, bg: "bg-[#e7f5ef]", fg: "text-[#16805d]" },
-  "Virements émis": { icon: ArrowUpRightIcon, bg: "bg-[#eef1f5]", fg: "text-[#344054]" },
-  Épargne: { icon: PiggyBankIcon, bg: "bg-[#e9f0fb]", fg: "text-[#2f5cad]" },
-  "Non catégorisé": { icon: CircleHelpIcon, bg: "bg-[#fef3e6]", fg: "text-[#b54708]" },
+  Alimentation: { icon: ShoppingCartIcon, bg: "bg-[#f0f9f4]", fg: "text-[#008234]" },
+  Restaurants: { icon: UtensilsIcon, bg: "bg-[#fff5e6]", fg: "text-[#af4000]" },
+  Transports: { icon: TrainFrontIcon, bg: "bg-[#eaf7ff]", fg: "text-[#003bb2]" },
+  Abonnements: { icon: TvIcon, bg: "bg-[#edeaf8]", fg: "text-[#492578]" },
+  Logement: { icon: HouseIcon, bg: "bg-[#efefef]", fg: "text-[#454545]" },
+  Santé: { icon: HeartPulseIcon, bg: "bg-[#fff3f4]", fg: "text-[#960010]" },
+  Shopping: { icon: ShoppingBagIcon, bg: "bg-[#f3efed]", fg: "text-[#8f0e43]" },
+  Revenus: { icon: BanknoteIcon, bg: "bg-[#f0f9f4]", fg: "text-[#008234]" },
+  "Virements reçus": { icon: ArrowDownLeftIcon, bg: "bg-[#f0f9f4]", fg: "text-[#008234]" },
+  "Virements émis": { icon: ArrowUpRightIcon, bg: "bg-[#efefef]", fg: "text-[#454545]" },
+  Épargne: { icon: PiggyBankIcon, bg: "bg-[#eaf7ff]", fg: "text-[#003bb2]" },
+  "Non catégorisé": { icon: CircleHelpIcon, bg: "bg-[#fff5e6]", fg: "text-[#af4000]" },
 }
 
 export function CategoryIcon({ category, merchant, className }: { category: string; merchant?: string; className?: string }) {
@@ -112,7 +112,7 @@ export function Section({ title, action, children, className, ...rest }: { title
 
 export function Panel({ children, className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("hc-outline rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]", className)} {...rest}>
+    <div className={cn("hc-outline rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(8,13,52,0.04),0_1px_3px_rgba(8,13,52,0.06)]", className)} {...rest}>
       {children}
     </div>
   )

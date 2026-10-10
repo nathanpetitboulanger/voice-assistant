@@ -513,12 +513,12 @@ def parse_args(description):
     parser.add_argument(
         "--speed",
         type=float,
-        default=1.3,
+        default=1.0,
         help="speaking speed, 0.25 (slow) to 1.5 (fast)",
     )
     parser.add_argument(
         "--eagerness",
-        default="auto",
+        default="low",
         choices=["low", "medium", "high", "auto"],
         help="how quickly the model jumps in after you stop talking",
     )

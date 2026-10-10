@@ -5,7 +5,8 @@ fictifs.
 
 ## Les cinq informations à recueillir
 
-Avant toute simulation, il faut les cinq, une question à la fois :
+Avant toute simulation, il faut les cinq. Les demander une à une, sans les annoncer ni
+dire combien il en reste :
 
 - le motif : voiture, travaux, rénovation énergétique, achat immobilier, ou autre
   projet personnel. Il fixe le type de prêt et son taux : le client n'a pas à le

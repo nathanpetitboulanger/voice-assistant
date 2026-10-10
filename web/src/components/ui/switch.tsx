@@ -10,7 +10,7 @@ export function Switch({ checked, onCheckedChange, className, ...rest }: { check
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         "relative inline-flex h-[26px] w-[44px] shrink-0 items-center rounded-full transition-colors after:absolute after:-inset-x-2 after:-inset-y-3",
-        checked ? "bg-ok" : "bg-[#d0d5dd]",
+        checked ? "bg-ok" : "bg-[#acacac]",
         className,
       )}
       {...rest}

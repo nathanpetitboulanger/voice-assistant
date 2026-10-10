@@ -43,7 +43,7 @@ export function BottomNav() {
                 aria-expanded={sheet === "open"}
                 className="-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-bold text-navy"
               >
-                <span className="flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_8px_20px_-6px_rgba(200,16,46,0.55)] ring-4 ring-white transition-transform active:scale-95">
+                <span className="flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_8px_20px_-6px_rgba(6,36,153,0.55)] ring-4 ring-white transition-transform active:scale-95">
                   <CompassMark className="size-7" />
                 </span>
                 Compass

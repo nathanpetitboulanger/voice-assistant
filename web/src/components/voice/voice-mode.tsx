@@ -60,14 +60,14 @@ function Orb({ size = 168 }: { size?: number }) {
       <div
         className={cn(
           "absolute inset-[14%] rounded-full blur-2xl transition-colors duration-500",
-          status === "speaking" ? "bg-brand/70" : status === "thinking" ? "bg-[#4a6fb3]/60" : "bg-white/15",
+          status === "speaking" ? "bg-[#369ad4]/70" : status === "thinking" ? "bg-[#7c90e0]/60" : "bg-white/15",
         )}
       />
       <div
         ref={inner}
         className={cn(
-          "relative flex items-center justify-center rounded-full shadow-[0_0_60px_-10px_rgba(200,16,46,0.8)] transition-colors duration-500",
-          status === "speaking" ? "bg-brand" : "bg-[#22365a]",
+          "relative flex items-center justify-center rounded-full shadow-[0_0_60px_-10px_rgba(54,154,212,0.8)] transition-colors duration-500",
+          status === "speaking" ? "bg-[#369ad4]" : "bg-[#18339f]",
         )}
         style={{ width: size * 0.56, height: size * 0.56 }}
       >
@@ -101,7 +101,7 @@ export function VoiceMode() {
   else if (live) action = { label: "Interrompre Compass", hint: status === "speaking" || status === "thinking" ? "Touchez pour l'interrompre" : "Parlez quand vous voulez", run: interrupt }
 
   return (
-    <div className="flex h-full flex-col bg-[radial-gradient(120%_80%_at_50%_0%,#22365a_0%,#14233b_55%,#0d1728_100%)] text-white" aria-label="Conversation vocale avec Compass">
+    <div className="flex h-full flex-col bg-[radial-gradient(120%_80%_at_50%_0%,#18339f_0%,#051b71_55%,#000c3c_100%)] text-white" aria-label="Conversation vocale avec Compass">
       <header className="flex shrink-0 items-center gap-2 px-4 pb-1 pt-3">
         <div className="flex-1">
           <h2 className="text-base font-extrabold">Conversation vocale</h2>
@@ -158,7 +158,7 @@ export function VoiceMode() {
                 </p>
               )}
               {m.error && (
-                <p role="alert" className="mt-1 text-sm font-semibold text-[#ffb4c0]">
+                <p role="alert" className="mt-1 text-sm font-semibold text-[#faafb7]">
                   Erreur : {m.error}
                 </p>
               )}
@@ -187,7 +187,7 @@ export function VoiceMode() {
             {muted ? <MicOffIcon className="size-6" /> : <MicIcon className="size-6" />}
           </button>
         )}
-        <button type="button" onClick={hangUp} aria-label="Raccrocher" className="flex size-16 items-center justify-center rounded-full bg-brand text-white shadow-lg hover:bg-brand-strong">
+        <button type="button" onClick={hangUp} aria-label="Raccrocher" className="flex size-16 items-center justify-center rounded-full bg-[#d20319] text-white shadow-lg hover:bg-[#960010]">
           <PhoneOffIcon className="size-7" />
         </button>
         <button type="button" onClick={backToText} aria-label="Raccrocher et revenir à l'écrit" className="flex size-14 items-center justify-center rounded-full bg-white/12 text-white hover:bg-white/20">
@@ -202,7 +202,7 @@ export function VoicePeek() {
   const { status, muted } = useVoice()
   const last = useCompass((s) => [...s.messages].reverse().find((m) => m.via === "voice" && m.role === "assistant" && m.text))
   return (
-    <div className="flex items-center gap-2 rounded-[22px] bg-navy p-2 pl-2.5 text-white shadow-[0_12px_32px_-12px_rgba(20,35,59,0.7)]">
+    <div className="flex items-center gap-2 rounded-[22px] bg-navy p-2 pl-2.5 text-white shadow-[0_12px_32px_-12px_rgba(8,13,52,0.7)]">
       <div className="shrink-0">
         <Orb size={44} />
       </div>
@@ -213,7 +213,7 @@ export function VoicePeek() {
       <button type="button" onClick={() => useCompass.getState().setSheet("open")} aria-label="Agrandir" className="flex size-9 items-center justify-center rounded-full bg-white/10">
         <ChevronUpIcon className="size-5" />
       </button>
-      <button type="button" onClick={hangUp} aria-label="Raccrocher" className="flex size-9 items-center justify-center rounded-full bg-brand">
+      <button type="button" onClick={hangUp} aria-label="Raccrocher" className="flex size-9 items-center justify-center rounded-full bg-[#d20319]">
         <PhoneOffIcon className="size-4" />
       </button>
     </div>

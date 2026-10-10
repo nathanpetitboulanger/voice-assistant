@@ -167,3 +167,10 @@ def test_security_headers(client):
     assert headers["x-frame-options"] == "DENY"
     assert "frame-ancestors 'none'" in headers["content-security-policy"]
     assert headers["x-content-type-options"] == "nosniff"
+
+
+def test_voice_speaks_at_normal_speed_and_lets_the_customer_think():
+    _, session = bank_store.new_session()
+    audio = server.session_config(session, push_to_talk=False)["audio"]
+    assert audio["output"]["speed"] == 1.0
+    assert audio["input"]["turn_detection"]["eagerness"] == "low"

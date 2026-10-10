@@ -62,9 +62,9 @@ const CUSTOMER_JOURNEYS: Journey[] = [
 
 const OUTCOME = {
   running: { label: "…", className: "bg-white/10 text-white/70" },
-  ok: { label: "OK", className: "bg-[#16805d]/30 text-[#6ee7b7]" },
-  waiting: { label: "ATTENTE", className: "bg-[#2f5cad]/40 text-[#bfdbfe]" },
-  error: { label: "REFUS", className: "bg-[#b54708]/35 text-[#fcd34d]" },
+  ok: { label: "OK", className: "bg-[#008234]/30 text-[#acecc8]" },
+  waiting: { label: "ATTENTE", className: "bg-[#0659ff]/40 text-[#c3deff]" },
+  error: { label: "REFUS", className: "bg-[#af4000]/35 text-[#ffdcbd]" },
   cancelled: { label: "ANNULÉ", className: "bg-white/10 text-white/80" },
 }
 
@@ -196,7 +196,7 @@ export function DemoPanel() {
           <p className="mt-2 text-[11px] text-muted-ink">Pendant un appel, la phrase touchée est posée dans l&apos;appel.</p>
         </div>
 
-        <div className="flex min-h-56 flex-1 flex-col rounded-2xl bg-[#0d1524] p-3 text-white shadow-sm">
+        <div className="flex min-h-56 flex-1 flex-col rounded-2xl bg-[#000c3c] p-3 text-white shadow-sm">
           <p className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-white/60">
             <ShieldIcon className="size-3.5" aria-hidden /> Outils exécutés par le serveur (temps réel)
           </p>

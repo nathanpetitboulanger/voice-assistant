@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Compass: prototype design tokens (Caisse d'Épargne-inspired, not official
-   brand values), from IAIMPACT. Amounts in French format, white surfaces, navy
-   typography, refined red accents.
+   Compass: prototype design tokens. Colors from Banque Populaire's chart
+   (banquepopulaire.fr, html.banque-populaire, read in October 2026): navy
+   primary, "bleu électrique" buttons, sky-blue secondary, their neutral and
+   status families. Amounts in French format, white surfaces, navy typography.
 --------------------------------------------------------------------------- */
 @theme inline {
   --color-background: var(--background);
@@ -27,32 +28,32 @@
 }
 
 :root {
-  --brand: #c8102e;
-  --brand-strong: #a50d26;
-  --brand-soft: #fdecef;
-  --navy: #14233b;
-  --navy-2: #22365a;
-  --surface: #f7f8fa;
-  --line: #e5e8ed;
-  --muted-ink: #667085;
-  --ok: #147a58; /* 4.7:1 on --ok-soft: WCAG AA for the small status pills */
-  --ok-soft: #e7f5ef;
-  --warn: #b54708;
-  --warn-soft: #fef3e6;
-  --info-soft: #eef3fb;
+  --brand: #062499; /* BP buttons and links (bleu électrique) */
+  --brand-strong: #051d7a; /* their hover */
+  --brand-soft: #e9ecf9; /* primary surface, discrete */
+  --navy: #051b71; /* BP primary brand */
+  --navy-2: #000c3c; /* its hover */
+  --surface: #f9f9fb;
+  --line: #e1e1e1;
+  --muted-ink: #666666;
+  --ok: #008234; /* 4.6:1 on --ok-soft: WCAG AA for the small status pills */
+  --ok-soft: #f0f9f4;
+  --warn: #af4000;
+  --warn-soft: #fff5e6;
+  --info-soft: #eaf7ff;
 
   --background: #ffffff;
-  --foreground: #14233b;
+  --foreground: #080d34; /* BP headings */
   color-scheme: light;
 }
 
 /* High-contrast mode (Profil > Accessibilité) */
 html[data-contrast="high"] {
-  --muted-ink: #2f3a4c;
-  --line: #8a94a6;
+  --muted-ink: #333333;
+  --line: #808080;
   --surface: #ffffff;
-  --brand: #a00a22;
-  --ok: #0b5e42;
+  --brand: #04165c;
+  --ok: #005a24;
 }
 html[data-contrast="high"] .hc-outline {
   outline: 2px solid var(--navy);
@@ -102,14 +103,14 @@ html[data-contrast="high"] .hc-outline {
 .stage-bg {
   background:
     radial-gradient(1200px 600px at 50% -10%, #ffffff 0%, transparent 70%),
-    linear-gradient(180deg, #eef1f6 0%, #e6eaf1 100%);
+    linear-gradient(180deg, #e6f0f7 0%, #e9ecf9 100%);
 }
 
 /* Assistant highlight of a UI element (subtle, accessible, motion-safe) */
 @keyframes compass-ring {
-  0% { box-shadow: 0 0 0 0 rgba(200, 16, 46, 0.45); }
-  70% { box-shadow: 0 0 0 10px rgba(200, 16, 46, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(200, 16, 46, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(6, 36, 153, 0.45); }
+  70% { box-shadow: 0 0 0 10px rgba(6, 36, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(6, 36, 153, 0); }
 }
 [data-highlighted="true"] {
   outline: 2px solid var(--brand);
@@ -128,7 +129,7 @@ html[data-motion="reduce"] [data-highlighted="true"] {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: #eef0f3;
+  background: #efefef;
   border-radius: 10px;
 }
 .skeleton::after {

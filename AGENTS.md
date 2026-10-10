@@ -9,6 +9,9 @@ to OpenAI, tools run server-side over the call's `call_id` WebSocket) or in writ
 (`/api/chat` WebSocket: the server relays a text-only Realtime session, same model and
 tools); deployed with `deploy/deploy.sh`. The host Nginx needs the Upgrade headers for
 `/api/chat` (see `deploy/nginx-host.conf.template`), or the written chat gets a 404.
+Colors are Banque Populaire's chart (tokens in `web/src/globals.css`); on navy, use its sky
+blue `#369ad4`, not `--brand` (1.2:1). Voice: speed 1.0, `semantic_vad` eagerness `low`,
+so users who are slow to answer aren't rushed or cut off.
 
 Sessions (`bank_store.py`, SQLite, stdlib): every browser gets an HttpOnly cookie, a
 visitor (the public home, `web/src/components/public/`) until the « Connexion démo »
@@ -30,7 +33,8 @@ figures, the assistant does. `instructions()` lives in `bank_tools.py` so the se
 doesn't import the audio code.
 Keep it short (gpt-realtime mini follows fewer rules well): topic rules go in the
 procedure sheets, and fixed wording (loan figures, legal notice, recap, every prepared
-action's question) goes in the tools' `say_word_for_word`; a rule the model must follow
+action's question) goes in the tools' `say_word_for_word` (the greeting is `GREETING`:
+by voice it adds `INTERRUPT`, telling users they may cut in); a rule the model must follow
 at a precise moment is best returned by the tool at that moment (e.g. `get_procedure`'s
 `visitor` note). Everything the model reads (instructions, tool and parameter
 descriptions, tool errors) is in French, for a French accent; names and enum values

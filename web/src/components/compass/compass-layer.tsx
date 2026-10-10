@@ -120,7 +120,7 @@ function Typing() {
 function Welcome({ firstName }: { firstName?: string }) {
   return (
     <div className="flex flex-col gap-2 pb-4 pt-2">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-10px_rgba(200,16,46,0.7)]">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-10px_rgba(6,36,153,0.7)]">
         <CompassMark className="size-7" />
       </span>
       <p className="text-[22px] font-extrabold leading-tight tracking-tight text-navy">
@@ -313,7 +313,7 @@ export function CompassLayer() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 34, stiffness: 320 }}
-            className="absolute inset-x-0 bottom-0 top-[5%] z-50 flex flex-col overflow-hidden rounded-t-[30px] bg-white shadow-[0_-20px_60px_-20px_rgba(20,35,59,0.45)] lg:top-[6.5%]"
+            className="absolute inset-x-0 bottom-0 top-[5%] z-50 flex flex-col overflow-hidden rounded-t-[30px] bg-white shadow-[0_-20px_60px_-20px_rgba(8,13,52,0.45)] lg:top-[6.5%]"
           >
             {voice ? (
               <VoiceMode />
@@ -405,7 +405,7 @@ export function CompassLayer() {
             {voice ? (
               <VoicePeek />
             ) : (
-              <div className="flex items-center gap-2 rounded-[22px] bg-white p-2 pl-3 shadow-[0_12px_32px_-12px_rgba(20,35,59,0.5)] ring-1 ring-line">
+              <div className="flex items-center gap-2 rounded-[22px] bg-white p-2 pl-3 shadow-[0_12px_32px_-12px_rgba(8,13,52,0.5)] ring-1 ring-line">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand text-white" aria-hidden>
                   <CompassMark className="size-4" />
                 </span>

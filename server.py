@@ -91,11 +91,13 @@ def session_config(session, push_to_talk, voice=VOICE, simple=False):
                 "noise_reduction": {"type": "near_field"},  # phone close to the mouth
                 "transcription": {"model": "gpt-4o-mini-transcribe"},
                 # Push-to-talk: the page commits the audio itself (Parler, Envoyer).
+                # low: waits longer when the customer sounds unfinished, so someone
+                # who takes time to think isn't cut off (auto is medium).
                 "turn_detection": None
                 if push_to_talk
-                else {"type": "semantic_vad", "eagerness": "auto"},
+                else {"type": "semantic_vad", "eagerness": "low"},
             },
-            "output": {"voice": voice, "speed": 1.3},
+            "output": {"voice": voice, "speed": 1.0},
         },
     }
 

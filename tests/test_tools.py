@@ -196,7 +196,7 @@ def test_complaint_is_recapped_then_sent_after_the_yes(camille):
 
 
 def test_one_procedure_at_a_time_still_holds(camille):
-    call(camille, "get_procedure", topic="credit")
+    assert "une seule par tour" in call(camille, "get_procedure", topic="credit")["pace"]
     switched = call(camille, "get_procedure", topic="reclamation")
     assert switched["say_word_for_word"].startswith("J'arrête la démarche crédit")
     assert "get_procedure pour credit" in call(camille, "simulate_loan", purpose="pret_auto", amount=10000, months=48, monthly_income=2500, age=34)["error"]
@@ -234,6 +234,17 @@ def test_instructions_are_the_sessions():
     assert "Camille Martin" in instructions(customer) and "Camille Martin" not in instructions(visitor)
     assert instructions(visitor, "text", simple=True).startswith("EXPLICATIONS SIMPLES")
     assert "en chiffres" in instructions(customer, "text")
+
+
+def test_the_voice_greeting_invites_to_cut_in():
+    _, visitor = bank_store.new_session()
+    _, customer = bank_store.new_session("camille")
+    for session in visitor, customer:
+        assert "coupez-moi" in instructions(session, "voice")
+        assert "coupez-moi" in instructions(session, "voice", simple=True)
+        assert "coupez-moi" not in instructions(session, "text")  # nothing to cut in writing
+    assert "« Bonjour Camille, je suis Compass" in instructions(customer, "voice")
+    assert "« Bonjour, je suis Compass" in instructions(visitor, "text")
 
 
 def test_numbers_are_masked():
