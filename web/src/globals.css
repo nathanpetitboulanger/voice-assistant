@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Compass: prototype design tokens (Caisse d'Épargne-inspired, not official
+   brand values), from IAIMPACT. Amounts in French format, white surfaces, navy
+   typography, refined red accents.
+--------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-navy: var(--navy);
+  --color-navy-2: var(--navy-2);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-muted-ink: var(--muted-ink);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info-soft: var(--info-soft);
+  --color-border: var(--line);
+}
+
+:root {
+  --brand: #c8102e;
+  --brand-strong: #a50d26;
+  --brand-soft: #fdecef;
+  --navy: #14233b;
+  --navy-2: #22365a;
+  --surface: #f7f8fa;
+  --line: #e5e8ed;
+  --muted-ink: #667085;
+  --ok: #16805d;
+  --ok-soft: #e7f5ef;
+  --warn: #b54708;
+  --warn-soft: #fef3e6;
+  --info-soft: #eef3fb;
+
+  --background: #ffffff;
+  --foreground: #14233b;
+  color-scheme: light;
+}
+
+/* High-contrast mode (Profil > Accessibilité) */
+html[data-contrast="high"] {
+  --muted-ink: #2f3a4c;
+  --line: #8a94a6;
+  --surface: #ffffff;
+  --brand: #a00a22;
+  --ok: #0b5e42;
+}
+html[data-contrast="high"] .hc-outline {
+  outline: 2px solid var(--navy);
+  outline-offset: -2px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  html[data-contrast="high"] :focus-visible {
+    outline: 4px solid #000;
+    box-shadow: 0 0 0 6px #ffd400;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* Desktop presentation backdrop */
+.stage-bg {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #ffffff 0%, transparent 70%),
+    linear-gradient(180deg, #eef1f6 0%, #e6eaf1 100%);
+}
+
+/* Assistant highlight of a UI element (subtle, accessible, motion-safe) */
+@keyframes compass-ring {
+  0% { box-shadow: 0 0 0 0 rgba(200, 16, 46, 0.45); }
+  70% { box-shadow: 0 0 0 10px rgba(200, 16, 46, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(200, 16, 46, 0); }
+}
+[data-highlighted="true"] {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+  animation: compass-ring 1.4s ease-out 3;
+  border-radius: 14px;
+  position: relative;
+}
+html[data-motion="reduce"] [data-highlighted="true"] {
+  animation: none;
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #eef0f3;
+  border-radius: 10px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes typing {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+.typing-dot {
+  animation: typing 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

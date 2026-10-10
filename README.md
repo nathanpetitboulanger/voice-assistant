@@ -106,31 +106,46 @@ mille euros", "On m'a prélevé des frais que je ne comprends pas".
 
 ## On the web (by voice or in writing)
 
-https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no login): a public
-information site with the look of Banque Populaire (their blue `#051b71`, sky blue
-`#369ad4`, the Ubuntu font), marked « Démo », built around the assistant. Its pages:
+https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no login): the
+front of IAIMPACT (BPCE Compass), a mobile banking app in a Caisse d'Épargne-inspired
+look (red `#c8102e`, navy `#14233b`, the Manrope font), marked « Prototype de
+démonstration ». The assistant, Compass, is a layer over the whole app rather than a
+page of its own: the customer says what they need, Compass does it, and the app shows
+the result. On a phone it fills the screen; on a computer it sits in a phone frame,
+with a demo panel on the right (DEMO ONLY: the journeys to replay, and the tools the
+server ran, live) and, on a wide screen, the pitch on the left.
 
-- Accueil: the four démarches, with questions to tap (they open the written chat with
-  the question asked), « Parler à l'assistant » / « Écrire à l'assistant », and an
-  urgent « Faire opposition ». No rates or fees on the page: the assistant gives them
-  from the procedure sheets, so they can't drift apart.
-- Assistant, two modes with the same assistant (instructions, tools, one démarche at a
-  time):
-  - Voix: tap « Appeler » and talk. The phone's browser cancels the echo, so you can
-    use its speaker and still interrupt the assistant. The echo cancellation can also
-    muffle your voice while the assistant talks, so « Interrompre » (or Escape) cuts it
-    off too, greeting included. In a noisy room, turn on « Pièce bruyante »: tap
-    « Parler », ask, tap « Envoyer ». Keep the screen on during a call (the page asks the
-    phone to): a locked phone stops the mic.
+- The bank's screens show a fictional customer, Camille Martin (`GET /api/customer`,
+  `demo_customer.py`, the same for everyone): Accueil (balances, the four démarches to
+  tap, her card, the latest operations), Comptes, Opérations (search, filters, the
+  detail of an operation), Cartes, Mes démarches, Profil. They are read-only: what can
+  be done goes through Compass, which still can't give a balance (its instructions
+  didn't change). « Je ne reconnais pas cette opération », on an operation, asks
+  Compass with its details: a complaint.
+- Compass, the bottom bar's middle button, the bar under the greeting, or the « …avec
+  Compass » buttons: a sheet over the app, in two modes with the same assistant
+  (instructions, tools, one démarche at a time):
   - Écrit: a classic chat. The answers are read by screen readers once written, in
-    full; « Arrêter » stops one.
-  In both, each tool shows as a chip, a loan simulation as a card, and the recap PDFs
-  as download links. A call or a chat goes on while you browse the other pages.
-- Mes démarches: what the assistant did (opposition, loan passed on, complaint...),
-  with the reference number and the PDF. No login: kept in this browser for 24 hours,
-  like the PDFs on the server, and nothing personal (no income, age or facts).
-- Accessibilité: text size, high contrast, the default mode, « Pièce bruyante ». Light
-  and dark follow the phone.
+    full; the stop button stops one.
+  - Voix (the mic button): the call starts at once. The phone's browser cancels the
+    echo, so you can use its speaker and still interrupt the assistant. The echo
+    cancellation can also muffle your voice while the assistant talks, so touching the
+    orb (or Escape) cuts it off too, greeting included. In a noisy room, turn on
+    « Pièce bruyante » (Profil): the orb becomes « Parler », then « Envoyer ». Keep the
+    screen on during a call (the page asks the phone to): a locked phone stops the mic.
+    A question tapped in the app during a call is asked in the call.
+  In both, each tool shows as a chip, a loan simulation as a card, and each démarche
+  as a card with its reference and recap PDF. The sheet folds into a bar above the
+  menu, and a call or a chat goes on while you browse.
+- The app responds: after a card block, it opens Cartes, where the card shows as
+  opposed, with the reference; after any other démarche, it opens Mes démarches on it.
+- Mes démarches: what Compass did (opposition, loan passed on, complaint...), with the
+  reference number and the PDF. No login: kept in this browser for 24 hours, like the
+  PDFs on the server, and nothing personal (no income, age or facts). The card shows
+  as opposed for as long as its démarche is kept.
+- Profil: text size, high contrast, reduced motion, what the Compass button opens
+  (writing or voice), Compass's voice (`marin` or `cedar`, `?voice=` on
+  `/api/session`), « Pièce bruyante ».
 
 How it works: by voice, the phone talks to the Realtime API directly over WebRTC.
 `server.py` (FastAPI) forwards its offer to OpenAI with the API key and the session
@@ -140,7 +155,8 @@ Phones only allow the mic over HTTPS (or on `localhost`). In writing, the page o
 WebSocket to `server.py` (`/api/chat`), which opens a text-only Realtime session (same
 model, `TEXT_INSTRUCTIONS`: the instructions plus a few lines on writing), relays the
 customer's messages and the answers, and runs the tools the same way. `web/` is the
-React page.
+React page (Vite, Tailwind, motion, zustand), ported from IAIMPACT's Next.js front;
+`server.py` serves it, and `index.html` for its paths (`/cartes`...).
 
 ```bash
 uv run uvicorn server:app --reload    # dev: API on :8000

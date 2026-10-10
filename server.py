@@ -11,7 +11,8 @@ phone's speaker. This server only:
 Text (WebSocket /api/chat): the same assistant, model and tools, in a text-only
 Realtime session that this server opens and relays to the page.
 
-It also serves the recap PDFs, loan or complaint (GET /api/recaps/<name>), and the
+It also serves the recap PDFs, loan or complaint (GET /api/recaps/<name>), the
+fictional customer the app's screens show (GET /api/customer, demo_customer.py), and the
 React page (web/dist).
 
     uv run uvicorn server:app --reload   # with: cd web && npm run dev
@@ -30,6 +31,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from bank_tools import (
@@ -40,11 +42,13 @@ from bank_tools import (
     Conversation,
     run_tool,
 )
+from demo_customer import customer
 
 load_dotenv()
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 MODEL = os.environ.get("REALTIME_MODEL", "gpt-realtime-2.1-mini")
 VOICE = os.environ.get("REALTIME_VOICE", "marin")  # see realtime_demo.py --voice
+VOICES = {VOICE, "marin", "cedar"}  # what the page offers (Profil > Voix de Compass)
 REALTIME_URL = "https://api.openai.com/v1/realtime"
 WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).parent / "web" / "dist"))
 
@@ -52,7 +56,7 @@ app = FastAPI()
 call_tasks = set()  # running call tasks, kept so asyncio doesn't garbage-collect them
 
 
-def session_config(push_to_talk):
+def session_config(push_to_talk, voice=VOICE):
     """Same session as the terminal version, minus the audio format: WebRTC uses Opus."""
     return {
         "type": "realtime",
@@ -69,7 +73,7 @@ def session_config(push_to_talk):
                 if push_to_talk
                 else {"type": "semantic_vad", "eagerness": "auto"},
             },
-            "output": {"voice": VOICE, "speed": 1.3},
+            "output": {"voice": voice, "speed": 1.3},
         },
     }
 
@@ -235,6 +239,12 @@ def health():
     return {"ok": True}
 
 
+@app.get("/api/customer")
+def demo_customer():
+    """The fictional customer the app's screens show: the same for every visitor."""
+    return customer()
+
+
 @app.get("/api/recaps/{name}")
 def recap(name: str):
     """A recap PDF (loan, complaint). Its random name is the key: there is no login."""
@@ -245,8 +255,10 @@ def recap(name: str):
 
 
 @app.post("/api/session")
-async def create_session(request: Request, ptt: bool = False):
+async def create_session(request: Request, ptt: bool = False, voice: str = VOICE):
     """Body: the phone's SDP offer. Returns OpenAI's SDP answer."""
+    if voice not in VOICES:
+        voice = VOICE
     offer = (await request.body()).decode()
     async with httpx.AsyncClient(timeout=20) as client:
         answer = await client.post(
@@ -255,7 +267,7 @@ async def create_session(request: Request, ptt: bool = False):
             # multipart form fields, without file names
             files={
                 "sdp": (None, offer),
-                "session": (None, json.dumps(session_config(ptt))),
+                "session": (None, json.dumps(session_config(ptt, voice))),
             },
         )
     if answer.is_error:
@@ -269,5 +281,19 @@ async def create_session(request: Request, ptt: bool = False):
     return PlainTextResponse(answer.text, media_type="application/sdp")
 
 
+class PageFiles(StaticFiles):
+    """web/dist, and index.html for the page's own routes (/cartes, /comptes...): a
+    reload or a shared link opens the right screen."""
+
+    async def get_response(self, path, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            name = path.rsplit("/", 1)[-1]
+            if e.status_code != 404 or path.startswith("api") or "." in name:
+                raise  # an unknown API route or a missing file: still a 404
+            return await super().get_response("index.html", scope)
+
+
 if WEB_DIR.is_dir():  # after the API routes, so /api/... isn't served as a file
-    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
+    app.mount("/", PageFiles(directory=WEB_DIR, html=True), name="web")

@@ -22,7 +22,7 @@ WORKDIR /app
 # Only the server's dependencies: no sounddevice, PortAudio or numpy.
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --only-group server --no-install-project
-COPY server.py bank_tools.py recap_pdf.py ./
+COPY server.py bank_tools.py recap_pdf.py demo_customer.py ./
 COPY bank_docs/ bank_docs/
 COPY --from=web /web/dist web/dist/
 USER nobody
