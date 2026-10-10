@@ -344,7 +344,7 @@ async def push_to_talk(ws, player, talking):
         await send(ws, {"type": "response.create"})
 
 
-async def run_tool_calls(ws, response):
+async def run_tool_calls(ws, response, run_tool):
     """Run the tools the model asked for, send back the results, and let it answer."""
     calls = [item for item in response["output"] if item["type"] == "function_call"]
     if not calls or response["status"] != "completed":
@@ -365,7 +365,7 @@ async def run_tool_calls(ws, response):
     await send(ws, {"type": "response.create"})
 
 
-async def handle_events(ws, player):
+async def handle_events(ws, player, run_tool):
     speaking_item = None
     async for message in ws:
         event = json.loads(message)
@@ -392,21 +392,22 @@ async def handle_events(ws, player):
                     )
                 # Tool calls are handled once the response is complete: sending
                 # response.create while one is still active would be rejected.
-                await run_tool_calls(ws, response)
+                await run_tool_calls(ws, response, run_tool)
             case "error":
                 # push-to-talk cancels the current answer whether or not there is one
                 if event["error"].get("code") != "response_cancel_not_active":
                     print(f"\n[error] {event['error'].get('message')}")
 
 
-def session_config(args):
-    tools = {} if args.no_tools else {"tools": TOOLS, "tool_choice": "auto"}
+def session_config(args, instructions, tools):
+    if args.no_tools:
+        instructions, tools = PLAIN_INSTRUCTIONS, []
     return {
         "type": "session.update",
         "session": {
             "type": "realtime",
-            "instructions": PLAIN_INSTRUCTIONS if args.no_tools else INSTRUCTIONS,
-            **tools,
+            "instructions": instructions,
+            **({"tools": tools, "tool_choice": "auto"} if tools else {}),
             "audio": {
                 "input": {
                     "format": {"type": "audio/pcm", "rate": RATE},
@@ -431,7 +432,7 @@ def session_config(args):
     }
 
 
-async def main(args):
+async def main(args, instructions, tools, run_tool):
     load_dotenv()
     key = os.environ["OPENAI_API_KEY"]
     if args.mic:
@@ -444,11 +445,11 @@ async def main(args):
     async with websockets.connect(
         url, additional_headers={"Authorization": f"Bearer {key}"}, max_size=None
     ) as ws:
-        await send(ws, session_config(args))
+        await send(ws, session_config(args, instructions, tools))
         await send(ws, {"type": "response.create"})  # let the assistant say hi first
 
         player = Player()
-        tasks = [watch_speakers(player), handle_events(ws, player)]
+        tasks = [watch_speakers(player), handle_events(ws, player, run_tool)]
         if args.push_to_talk:
             talking = asyncio.Event()
             tasks += [
@@ -459,10 +460,10 @@ async def main(args):
         else:
             gate = NoiseGate(args.noise_gate)
             tasks.append(stream_mic(ws, player, args.speakers, gate=gate))
-            start = "Start talking, close to the mic."
+            start = "Start talking."
         try:
             print(f"Connected to {args.model}. {start} Ctrl+C to quit.")
-            if not args.push_to_talk:
+            if not args.push_to_talk and args.noise_gate > -90:
                 print(
                     f"Noise gate: the model only hears sound above {args.noise_gate:g} dBFS"
                     " (--noise-gate; check your voice with --levels)."
@@ -472,9 +473,9 @@ async def main(args):
             player.close()
 
 
-if __name__ == "__main__":
+def parse_args(description):
     parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--model", default="gpt-realtime-2.1")
     parser.add_argument(
@@ -500,11 +501,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--noise-gate",
         type=float,
-        default=-10,
         metavar="DBFS",
         help="mute the mic below this level, so the people around you don't keep it"
         " listening: raise it (e.g. -6) if it stays on [hearing you...], lower it"
-        " (e.g. -20) if it doesn't hear you; -90 turns it off (default: %(default)s)",
+        " (e.g. -20) if it doesn't hear you; -90 turns it off (default: -10 with the"
+        " laptop mic, off with a headset mic)",
     )
     parser.add_argument(
         "--levels",
@@ -534,9 +535,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-tools",
         action="store_true",
-        help="plain voice assistant without the document tools (for debugging)",
+        help="plain voice assistant without the tools (for debugging)",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def run(args, instructions, tools, run_tool):
+    """Pick the mic and talk until Ctrl+C. Also used by bank_assistant.py."""
     args.laptop_mic = False
     restore = None
     if not (args.mic or args.device):
@@ -545,10 +550,16 @@ if __name__ == "__main__":
         elif mic := mic_instead_of_bluetooth():
             args.mic, args.laptop_mic = mic, True
             print(f"Bluetooth headset: listening through {mic} (or --headset-mic).")
+    if args.noise_gate is None:  # the laptop mic hears the whole room, a headset's doesn't
+        args.noise_gate = -10 if args.laptop_mic else -90
     try:
-        asyncio.run(main(args))
+        asyncio.run(main(args, instructions, tools, run_tool))
     except KeyboardInterrupt:
         print("\nbye")
     finally:
         if restore:  # back to the headset's normal (music) profile
             subprocess.run(["pactl", "set-card-profile", *restore])
+
+
+if __name__ == "__main__":
+    run(parse_args(__doc__), INSTRUCTIONS, TOOLS, run_tool)

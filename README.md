@@ -51,6 +51,68 @@ mic, pass `--mic <source>` (see `pactl list short sources`).
 - The instructions tell the model to always look things up, answer only from the
   documents, cite the document it used, and say when the answer isn't there.
 
+## Banking assistant for blind customers
+
+```bash
+uv run bank_assistant.py                 # same audio options as realtime_demo.py
+uv run bank_assistant.py --push-to-talk
+```
+
+A voice assistant for a bank's app, for blind and visually impaired customers: from
+"I'm looking for" to "it's done", without looking for anything or clicking. It covers
+four procedures (complaint, lost code, loan, wealth management) in five steps:
+
+1. Express: the customer says what they need in their own words.
+2. Understand: the assistant rephrases it and asks the useful details, one at a time.
+3. Explain: it answers from the bank's procedure sheet (`get_procedure`) and names it.
+4. Act: it runs a loan simulation (`simulate_loan`), or files the request by voice
+   (`start_request`: block a card, complaint, PIN by mail, password reset, loan,
+   appointment) after a clear yes, and reads the reference number in groups.
+5. Hand over: it passes the customer to a human (`transfer_to_advisor`) with a summary,
+   so they don't have to repeat anything.
+
+It never refers to the screen, never lets the customer say a PIN or password, and
+offers to block a lost card first. Files:
+
+- `bank_assistant.py`: the terminal version; reuses the audio and Realtime loop of
+  `realtime_demo.py`.
+- `bank_tools.py`: the instructions and the four tools. Requests and handovers are
+  simulated: the terminal (or `docker compose logs`) shows the case file the back
+  office or the advisor would receive.
+- `bank_docs/`: one procedure sheet per topic, in French. Their rates, fees, delays and
+  phone numbers are fictional: replace them with the bank's. A new `.md` sheet becomes
+  a new topic (its first line is the description the model sees). Loan rates and limits
+  are also in `LOANS` in `bank_tools.py`.
+
+Things to try: "J'ai perdu ma carte et quelqu'un a vu mon code", "Je voudrais
+emprunter dix mille euros pour une voiture sur quatre ans", "J'ai hérité de huit cent
+mille euros", "On m'a prélevé des frais que je ne comprends pas".
+
+## On your phone (web version of the banking assistant)
+
+https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no code). Tap
+« Appeler » and talk: the phone's browser cancels the echo, so you can use its speaker
+and still interrupt the assistant. In a noisy room, tick « Pièce bruyante »: tap
+« Parler », ask, tap « Envoyer ». Keep the screen on during a call (the page asks the
+phone to): a locked phone stops the mic.
+
+How it works: the phone talks to the Realtime API directly over WebRTC. `server.py`
+(FastAPI) forwards its offer to OpenAI with the API key and the session (same
+instructions and tools as the terminal version), then joins the call over a WebSocket
+to run the tools of `bank_tools.py`. `web/` is the React page. Audio never goes through
+the server. Phones only allow the mic over HTTPS (or on `localhost`).
+
+```bash
+uv run uvicorn server:app --reload    # dev: API on :8000
+cd web && npm install && npm run dev  # dev: page on :5173 (laptop browser)
+docker compose up --build             # the production image, on http://localhost:8098
+./deploy/deploy.sh                    # build, ship to the VPS, start, check /api/health
+```
+
+`.env`: `OPENAI_API_KEY`, `APP_PORT` (see
+`.env.example`). On the VPS: `/root/code/voice-assistant`, port 8098 on loopback,
+behind the host Nginx (`deploy/nginx-host.conf.template`).
+
 ## Your own documents
 
 Drop `.md` or `.txt` files into `docs/` (subfolders work too). The first line is used
