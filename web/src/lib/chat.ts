@@ -145,5 +145,5 @@ export function closeChat(keepVoice: boolean) {
   socket = null // its onclose then does nothing
   ws?.close()
   turn = null
-  useCompass.setState((s) => ({ chatStatus: "idle", busy: false, announce: "", messages: s.messages.filter((m) => keepVoice && m.via === "voice") }))
+  useCompass.setState((s) => ({ chatStatus: "idle", busy: false, announce: "", rating: null, messages: s.messages.filter((m) => keepVoice && m.via === "voice") }))
 }

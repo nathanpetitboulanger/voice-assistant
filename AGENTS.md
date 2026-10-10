@@ -29,7 +29,10 @@ kinds: keep them apart. Transfers don't exist: the assistant says so.
 In `web/src/lib`, `tools.ts` turns the tool calls into chips and cards (confirm buttons
 send « Oui, je confirme. » into the conversation) and reloads what the server stored;
 keep its labels in sync with `bank_tools.py`. The app's texts (`site.ts`) give no
-figures, the assistant does. `instructions()` lives in `bank_tools.py` so the server
+figures, the assistant does. When a conversation ends (hanging up, closing Compass, a new
+conversation) after the user asked something, `rating.ts` asks for 1 to 5 stars (« Passer »
+or Escape skips), once per exchange; `POST /api/ratings` keeps them, anonymous, and the
+demo panel shows the average. `instructions()` lives in `bank_tools.py` so the server
 doesn't import the audio code.
 Keep it short (gpt-realtime mini follows fewer rules well): topic rules go in the
 procedure sheets, and fixed wording (loan figures, legal notice, recap, every prepared

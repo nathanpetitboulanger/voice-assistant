@@ -20,6 +20,8 @@ export interface UIMessage {
 }
 
 export type SheetMode = "closed" | "open" | "peek"
+/** The stars asked when a conversation ends, then what was being done (see rating.ts). */
+export type PendingRating = { mode: "voice" | "text"; then: () => void }
 export type ChatStatus = "idle" | "connecting" | "open" | "ended" | "failed"
 
 interface CompassState {
@@ -33,6 +35,7 @@ interface CompassState {
   highlight: { target: Highlight; nonce: number } | null
   trace: TraceEvent[] // newest first, for the demo panel
   actions: Record<string, ActionState> // the prepared actions, by id: their buttons
+  rating: PendingRating | null // the sheet shows « Votre avis »
   setSheet: (m: SheetMode) => void
   setVoice: (v: boolean) => void
   setHighlight: (h: Highlight | null) => void
@@ -49,6 +52,7 @@ export const useCompass = create<CompassState>((set) => ({
   highlight: null,
   trace: [],
   actions: {},
+  rating: null,
   setSheet: (sheet) => set({ sheet }),
   setVoice: (voice) => set({ voice }),
   setHighlight: (h) => set({ highlight: h ? { target: h, nonce: Date.now() } : null }),

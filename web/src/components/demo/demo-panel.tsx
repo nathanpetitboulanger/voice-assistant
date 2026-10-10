@@ -6,6 +6,7 @@ import { closeChat } from "@/lib/chat"
 import { askCompass } from "@/lib/compass"
 import { useCustomer } from "@/lib/customer"
 import { clearDemarches, useDemarches } from "@/lib/demarches"
+import { loadRatings, useRatings } from "@/lib/rating"
 import { navigate } from "@/lib/router"
 import { useCompass } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -74,11 +75,13 @@ export function DemoPanel() {
   const voiceStatus = useVoice((s) => s.status)
   const demarches = useDemarches((s) => s.demarches)
   const { data } = useCustomer()
+  const ratings = useRatings()
   const auth = useAuth()
   const [server, setServer] = useState<boolean | null>(null)
   const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
+    loadRatings()
     fetch("/api/health")
       .then((r) => setServer(r.ok))
       .catch(() => setServer(false))
@@ -162,6 +165,14 @@ export function DemoPanel() {
             ) : (
               <>
                 Visiteur : aucune donnée de compte · demandes <b>{demarches.length}</b>
+              </>
+            )}
+            {" · "}avis{" "}
+            {ratings.average === null ? (
+              <b>aucun</b>
+            ) : (
+              <>
+                <b>{ratings.average.toLocaleString("fr-FR")}/5</b> ({ratings.count})
               </>
             )}
           </p>

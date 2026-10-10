@@ -20,7 +20,8 @@ Realtime session that this server opens and relays to the page.
 It also serves the customer's data (GET /api/customer, only logged in), the démarches
 of this session (GET /api/demarches), the card lock of the Cartes screen
 (POST /api/cards/<id>/lock|unlock), the recap PDFs of this session
-(GET /api/recaps/<name>), and the React page (web/dist).
+(GET /api/recaps/<name>), the stars given at the end of a conversation
+(POST /api/ratings), and the React page (web/dist).
 
     uv run uvicorn server:app --reload   # with: cd web && npm run dev
 """
@@ -32,7 +33,7 @@ import re
 import time
 from collections import deque
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 import httpx
@@ -41,7 +42,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
@@ -311,6 +312,30 @@ def recap(name: str, request: Request):
     ):
         raise HTTPException(404, "Ce récapitulatif n'existe plus.")
     return FileResponse(path, media_type="application/pdf")
+
+
+class Rating(BaseModel):
+    stars: int = Field(ge=1, le=5)
+    mode: Literal["voice", "text"]
+
+
+@app.post("/api/ratings", dependencies=[Depends(same_site)])
+def rate(body: Rating, request: Request):
+    """The stars (1 to 5) given when a conversation ends: on hanging up, closing Compass
+    or starting a new conversation. Anonymous, a visitor's too."""
+    session = current_session(request)
+    if not session:
+        raise HTTPException(401, "Session requise.")
+    bank_store.add_rating(session, body.stars, body.mode)
+    print(f"[rating] {body.stars}/5 ({body.mode})", flush=True)
+    return bank_store.rating_summary()
+
+
+@app.get("/api/ratings")
+def ratings(response: Response):
+    """How many ratings, and their average: for the demo panel."""
+    response.headers["Cache-Control"] = "no-store"
+    return bank_store.rating_summary()
 
 
 @app.get("/api/health")

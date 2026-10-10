@@ -174,3 +174,24 @@ def test_voice_speaks_at_normal_speed_and_lets_the_customer_think():
     audio = server.session_config(session, push_to_talk=False)["audio"]
     assert audio["output"]["speed"] == 1.0
     assert audio["input"]["turn_detection"]["eagerness"] == "low"
+
+
+def test_ratings_are_counted_and_checked(client):
+    before = client.get("/api/ratings").json()
+    for stars, mode in ((5, "voice"), (2, "text")):
+        response = client.post("/api/ratings", json={"stars": stars, "mode": mode}, headers=ORIGIN)
+        assert response.status_code == 200
+    after = client.get("/api/ratings").json()
+    assert after["count"] == before["count"] + 2
+    assert 1 <= after["average"] <= 5
+    for bad in ({"stars": 0, "mode": "text"}, {"stars": 6, "mode": "text"}, {"stars": 3, "mode": "fax"}):
+        assert client.post("/api/ratings", json=bad, headers=ORIGIN).status_code == 422
+    foreign = client.post("/api/ratings", json={"stars": 5, "mode": "text"}, headers={"origin": "https://evil.example"})
+    assert foreign.status_code == 403
+    assert client.get("/api/ratings").json()["count"] == after["count"]
+
+
+def test_rating_needs_a_session():
+    with TestClient(server.app) as fresh:
+        response = fresh.post("/api/ratings", json={"stars": 5, "mode": "text"}, headers=ORIGIN)
+    assert response.status_code == 401

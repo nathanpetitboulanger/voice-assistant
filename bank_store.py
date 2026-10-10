@@ -8,6 +8,9 @@ Every demo login opens its own sandbox: the fictional customer as seeded in
 demo_customer.py, plus what this session did (card statuses, démarches). Two people
 demoing at once don't see each other's changes, and logging out discards them: that is
 the demo's reset, so there is no reset endpoint to protect.
+
+The stars given at the end of a conversation (ratings) are anonymous: they stay after
+the session goes.
 """
 
 import hashlib
@@ -50,6 +53,12 @@ CREATE TABLE IF NOT EXISTS demarches (
     created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS demarches_session ON demarches (session_id, created_at);
+CREATE TABLE IF NOT EXISTS ratings (
+    stars INTEGER NOT NULL,       -- 1 to 5
+    mode TEXT NOT NULL,           -- voice or text
+    customer INTEGER NOT NULL,    -- 0: a visitor
+    created_at REAL NOT NULL
+);
 """
 
 _lock = threading.Lock()  # tools run in threads (server.py), the API in the event loop
@@ -260,3 +269,20 @@ def reference_taken(reference):
             .fetchone()
         )
     return row is not None
+
+
+def add_rating(session, stars, mode):
+    with _lock:
+        _conn().execute(
+            "INSERT INTO ratings (stars, mode, customer, created_at) VALUES (?, ?, ?, ?)",
+            (stars, mode, int(session.is_customer), time.time()),
+        )
+
+
+def rating_summary():
+    """{count, average}: every rating given, all sessions together (the demo panel)."""
+    with _lock:
+        count, average = (
+            _conn().execute("SELECT COUNT(*), AVG(stars) FROM ratings").fetchone()
+        )
+    return {"count": count, "average": round(average, 1) if count else None}

@@ -1,6 +1,7 @@
 """The page in a real browser, without the model: public home, private pages, the
 Connexion démo, the bank's screens, the card lock, logout, layouts, keyboard."""
 
+import json
 import re
 
 import pytest
@@ -212,6 +213,76 @@ def test_compass_opens_and_closes_for_a_visitor(page):
     expect(page.get_by_label("Votre message à Compass")).to_be_focused()
     sheet.get_by_role("button", name="Fermer Compass").click()
     expect(sheet).to_have_count(0)
+
+
+def fake_chat(page):
+    """/api/chat without OpenAI: « Bienvenue. », then « Réponse. » to each message, as
+    Realtime events (the ones server.py relays)."""
+
+    def answer(ws, n):
+        item = f"item{n}"
+        text = "Réponse." if n > 1 else "Bienvenue."
+        for event in (
+            {"type": "response.created", "response": {"id": f"resp{n}"}},
+            {"type": "response.output_text.delta", "item_id": item, "delta": text},
+            {"type": "response.output_text.done", "item_id": item, "text": text},
+            {"type": "response.done", "response": {"status": "completed", "output": []}},
+        ):
+            ws.send(json.dumps(event))
+
+    def handler(ws):
+        turns = iter(range(1, 100))
+        answer(ws, next(turns))  # the greeting
+        ws.on_message(lambda message: json.loads(message).get("type") == "message" and answer(ws, next(turns)))
+
+    page.route_web_socket(re.compile(r".*/api/chat.*"), handler)
+
+
+def test_stars_asked_when_closing_compass_after_a_question(page):
+    fake_chat(page)
+    page.goto("/")
+    before = page.evaluate("fetch('/api/ratings').then(r => r.json())")["count"]
+    page.get_by_role("button", name="Écrire à Compass").click()
+    sheet = page.get_by_role("dialog", name="Compass, assistant bancaire")
+    sheet.get_by_role("button", name="Fermer Compass").click()  # nothing asked yet: closes
+    expect(sheet).to_have_count(0)
+    page.get_by_role("button", name="Écrire à Compass").click()
+    expect(sheet.get_by_role("log")).to_contain_text("Bienvenue.")
+    page.get_by_label("Votre message à Compass").fill("Bonjour")
+    page.keyboard.press("Enter")
+    expect(sheet.get_by_role("log")).to_contain_text("Réponse.")
+    sheet.get_by_role("button", name="Fermer Compass").click()
+    expect(sheet.get_by_role("heading", name="Votre avis")).to_be_focused()
+    send = sheet.get_by_role("button", name="Envoyer")
+    expect(send).to_be_disabled()
+    sheet.get_by_label("4 étoiles sur 5").check(force=True)  # the radio is visually hidden
+    shot(page, "rating")
+    send.click()
+    expect(sheet).to_have_count(0)
+    expect(page.get_by_role("status").filter(has_text="Merci pour votre avis.")).to_be_visible()
+    after = page.evaluate("fetch('/api/ratings').then(r => r.json())")
+    assert after["count"] == before + 1
+    # Rated: closing again doesn't ask again.
+    page.get_by_role("button", name="Écrire à Compass").click()
+    sheet.get_by_role("button", name="Fermer Compass").click()
+    expect(sheet).to_have_count(0)
+    assert page.errors == []
+
+
+def test_stars_can_be_skipped_with_escape(page):
+    fake_chat(page)
+    page.goto("/")
+    page.get_by_role("button", name="Écrire à Compass").click()
+    sheet = page.get_by_role("dialog", name="Compass, assistant bancaire")
+    expect(sheet.get_by_role("log")).to_contain_text("Bienvenue.")
+    page.get_by_label("Votre message à Compass").fill("Bonjour")
+    page.keyboard.press("Enter")
+    expect(sheet.get_by_role("log")).to_contain_text("Réponse.")
+    sheet.get_by_role("button", name="Nouvelle conversation").click()
+    expect(sheet.get_by_role("heading", name="Votre avis")).to_be_visible()
+    page.keyboard.press("Escape")  # « Passer »: then the new conversation
+    expect(sheet.get_by_role("heading", name="Votre avis")).to_have_count(0)
+    expect(sheet.get_by_role("log")).not_to_contain_text("Réponse.")  # a new conversation
 
 
 def test_logout_in_another_tab_closes_this_one(page):

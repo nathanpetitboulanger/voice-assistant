@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { ChevronDownIcon, ChevronUpIcon, KeyboardIcon, MicIcon, MicOffIcon, PhoneOffIcon, RotateCcwIcon } from "lucide-react"
+import { endInteraction } from "@/lib/rating"
 import { useCompass } from "@/lib/store"
 import { interrupt, levels, sendTurn, setMuted, startVoice, stopVoice, talk, useVoice, voiceActive, type VoiceStatus } from "@/lib/voice"
 import { cn } from "@/lib/utils"
@@ -29,9 +30,14 @@ export function VoiceController() {
   return null
 }
 
+/** Hanging up ends the call, then asks for the stars (from the peek too). */
 function hangUp() {
   stopVoice()
-  useCompass.getState().setVoice(false)
+  const { sheet, setSheet, setVoice } = useCompass.getState()
+  setVoice(false)
+  endInteraction("voice", () => {
+    if (sheet === "peek") setSheet("peek")
+  })
 }
 
 /** Orb driven by real audio levels: inner = Compass speaking, ring = customer voice. */

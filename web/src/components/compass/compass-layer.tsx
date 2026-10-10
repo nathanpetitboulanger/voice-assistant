@@ -6,12 +6,14 @@ import {
 import { useAuth } from "@/lib/auth"
 import { cancelChat, connectChat, newConversation, sendChat } from "@/lib/chat"
 import { usePrefs } from "@/lib/prefs"
+import { endInteraction, rate } from "@/lib/rating"
 import { PUBLIC_SUGGESTIONS, SUGGESTIONS } from "@/lib/site"
 import { useCompass, type ChatStatus, type UIMessage } from "@/lib/store"
 import { cn } from "@/lib/utils"
 import { interrupt, voiceActive } from "@/lib/voice"
 import { AssistantCardView, ToolChips } from "./cards"
 import { CompassMark } from "./compass-mark"
+import { RatingView } from "./rating"
 import { VoiceController, VoiceMode, VoicePeek } from "@/components/voice/voice-mode"
 import { setSimple } from "@/components/settings/accessibility"
 
@@ -232,6 +234,9 @@ function Composer({ inputRef }: { inputRef: React.RefObject<HTMLTextAreaElement 
   )
 }
 
+/** Closing Compass ends the conversation for the customer: their stars first. */
+const closeCompass = () => endInteraction("text", () => useCompass.getState().setSheet("closed"))
+
 export function CompassLayer() {
   const sheet = useCompass((s) => s.sheet)
   const voice = useCompass((s) => s.voice)
@@ -240,6 +245,7 @@ export function CompassLayer() {
   const busy = useCompass((s) => s.busy)
   const status = useCompass((s) => s.chatStatus)
   const announce = useCompass((s) => s.announce)
+  const rating = useCompass((s) => s.rating)
   const person = useAuth((s) => s.customer)
   const simple = usePrefs((p) => p.simple)
   const scroller = useRef<HTMLDivElement>(null)
@@ -266,12 +272,13 @@ export function CompassLayer() {
   }, [messages, sheet, voice])
 
   useEffect(() => {
-    if (sheet === "open" && !voice) setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 250)
-  }, [sheet, voice])
+    if (sheet === "open" && !voice && !rating) setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 250)
+  }, [sheet, voice, rating])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || useCompass.getState().sheet !== "open") return
+      if (useCompass.getState().rating) return rate(null) // « Passer »
       // During a call, Escape cuts the assistant off, like tapping the orb.
       if (useCompass.getState().voice && voiceActive()) interrupt()
       else useCompass.getState().setSheet("peek")
@@ -299,7 +306,7 @@ export function CompassLayer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => useCompass.getState().setSheet("peek")}
+            onClick={() => (useCompass.getState().rating ? rate(null) : useCompass.getState().setSheet("peek"))}
             aria-hidden
           />
         )}
@@ -315,7 +322,9 @@ export function CompassLayer() {
             transition={{ type: "spring", damping: 34, stiffness: 320 }}
             className="absolute inset-x-0 bottom-0 top-[5%] z-50 flex flex-col overflow-hidden rounded-t-[30px] bg-white shadow-[0_-20px_60px_-20px_rgba(8,13,52,0.45)] lg:top-[6.5%]"
           >
-            {voice ? (
+            {rating ? (
+              <RatingView />
+            ) : voice ? (
               <VoiceMode />
             ) : (
               <>
@@ -350,7 +359,7 @@ export function CompassLayer() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => newConversation(voiceActive())}
+                      onClick={() => endInteraction("text", () => newConversation(voiceActive()))}
                       disabled={status === "connecting"}
                       aria-label="Nouvelle conversation"
                       title="Nouvelle conversation"
@@ -361,7 +370,7 @@ export function CompassLayer() {
                     <button type="button" onClick={() => useCompass.getState().setSheet("peek")} aria-label="Réduire Compass" className="flex size-9 items-center justify-center rounded-full text-navy hover:bg-surface">
                       <ChevronDownIcon className="size-5" />
                     </button>
-                    <button type="button" onClick={() => useCompass.getState().setSheet("closed")} aria-label="Fermer Compass" className="flex size-9 items-center justify-center rounded-full text-navy hover:bg-surface">
+                    <button type="button" onClick={closeCompass} aria-label="Fermer Compass" className="flex size-9 items-center justify-center rounded-full text-navy hover:bg-surface">
                       <XIcon className="size-5" />
                     </button>
                   </div>
@@ -381,7 +390,7 @@ export function CompassLayer() {
                       <p className="text-sm font-semibold text-navy">
                         {status === "ended" ? "La conversation est terminée." : "Impossible de joindre Compass. Vérifiez votre connexion, puis réessayez."}
                       </p>
-                      <button type="button" onClick={() => newConversation(voiceActive())} className="flex h-11 items-center gap-2 rounded-2xl bg-brand px-5 text-sm font-bold text-white hover:bg-brand-strong">
+                      <button type="button" onClick={() => (status === "ended" ? endInteraction("text", () => newConversation(voiceActive())) : newConversation(voiceActive()))} className="flex h-11 items-center gap-2 rounded-2xl bg-brand px-5 text-sm font-bold text-white hover:bg-brand-strong">
                         <RotateCcwIcon className="size-4" aria-hidden />
                         {status === "ended" ? "Nouvelle conversation" : "Réessayer"}
                       </button>
@@ -417,7 +426,7 @@ export function CompassLayer() {
                 <button type="button" onClick={() => useCompass.getState().setSheet("open")} aria-label="Agrandir Compass" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface text-navy">
                   <ChevronUpIcon className="size-5" />
                 </button>
-                <button type="button" onClick={() => useCompass.getState().setSheet("closed")} aria-label="Fermer Compass" className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-ink hover:bg-surface">
+                <button type="button" onClick={closeCompass} aria-label="Fermer Compass" className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-ink hover:bg-surface">
                   <XIcon className="size-4" />
                 </button>
               </div>
