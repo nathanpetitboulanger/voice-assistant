@@ -7,7 +7,8 @@ speaker. This server only:
 - forwards the phone's SDP offer to OpenAI with the API key and the session
   (POST /api/session), so the key, the instructions and the tools stay here;
 - joins the same call over a WebSocket (its call_id) to run the tools of bank_tools.py;
-- serves the React page (web/dist).
+- serves the recap PDFs, loan or complaint (GET /api/recaps/<name>), and the React
+  page (web/dist).
 
     uv run uvicorn server:app --reload   # with: cd web && npm run dev
 """
@@ -15,16 +16,17 @@ speaker. This server only:
 import asyncio
 import json
 import os
+import re
 from pathlib import Path
 
 import httpx
 import websockets
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from bank_tools import INSTRUCTIONS, TOOLS, run_tool
+from bank_tools import INSTRUCTIONS, RECAPS_DIR, TOOLS, Conversation, run_tool
 
 load_dotenv()
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -62,7 +64,7 @@ async def send(ws, event):
     await ws.send(json.dumps(event))
 
 
-async def run_tool_calls(ws, response):
+async def run_tool_calls(ws, response, conversation):
     """Run the tools the model asked for, send back the results, and let it answer."""
     calls = [item for item in response["output"] if item["type"] == "function_call"]
     if not calls or response["status"] != "completed":
@@ -76,7 +78,10 @@ async def run_tool_calls(ws, response):
                 "item": {
                     "type": "function_call_output",
                     "call_id": call["call_id"],
-                    "output": run_tool(call["name"], call["arguments"]),
+                    # in a thread: a recap PDF takes half a second
+                    "output": await asyncio.to_thread(
+                        run_tool, call["name"], call["arguments"], conversation
+                    ),
                 },
             },
         )
@@ -92,11 +97,12 @@ async def run_call(call_id):
             max_size=None,
         ) as ws:
             print(f"[call] {call_id} started", flush=True)
+            conversation = Conversation()  # the procedure in progress in this call
             async for message in ws:
                 event = json.loads(message)
                 match event["type"]:
                     case "response.done":
-                        await run_tool_calls(ws, event["response"])
+                        await run_tool_calls(ws, event["response"], conversation)
                     case "error":
                         print(f"[error] {event['error'].get('message')}", flush=True)
     except websockets.ConnectionClosed:
@@ -109,6 +115,15 @@ async def run_call(call_id):
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/recaps/{name}")
+def recap(name: str):
+    """A recap PDF (loan, complaint). Its random name is the key: there is no login."""
+    path = RECAPS_DIR / name
+    if not re.fullmatch(r"[A-Za-z0-9_-]{22}\.pdf", name) or not path.is_file():
+        raise HTTPException(404, "Ce récapitulatif n'existe plus.")
+    return FileResponse(path, media_type="application/pdf")
 
 
 @app.post("/api/session")

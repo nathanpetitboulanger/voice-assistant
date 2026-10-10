@@ -6,6 +6,14 @@ for blind customers: tools in `bank_tools.py`, procedure sheets in `bank_docs/`.
 `server.py` + `web/` is the phone version of the bank assistant (WebRTC to OpenAI, tools
 run server-side over the call's `call_id` WebSocket); deployed with `deploy/deploy.sh`.
 `INSTRUCTIONS` lives in `bank_tools.py` so the server doesn't import the audio code.
+Keep it short (gpt-realtime mini follows fewer rules well): topic rules go in the
+procedure sheets, and fixed wording (loan figures, legal notice, recap) goes in the
+tools' `say_word_for_word`. The recap PDFs, loan and complaint (`recap_pdf.py`,
+WeasyPrint, needs Pango) go to `RECAPS_DIR` (`recaps/`, `/tmp/recaps` in Docker), served
+at `/api/recaps/`. One procedure (démarche) at a time per call: `Conversation` in
+`bank_tools.py` (one per call in `server.py`, one per run in `bank_assistant.py`) only
+runs a procedure's tools while it is in progress, and makes `get_procedure` say that it
+stops the unfinished one.
 Dev machine: Arch, PipeWire 1.6.9, MediaTek MT7921 Wi-Fi/Bluetooth card (USB `13d3:3563`,
 `btusb`), Sony WH-CH520 Bluetooth headset, built-in laptop mic.
 
@@ -56,5 +64,9 @@ user's voice). The output follows the default sink, which may still be the Bluet
 - `[hearing you...]` followed by nothing means the server is still detecting speech.
   Log every server event except the `.delta` ones (`speech_started/stopped`, and
   `response.done` status and reason) to see what the server is doing.
+- Talking over the greeting does cancel it server-side (`response.done` status
+  `cancelled`, reason `turn_detected`, tested over WebSocket). When it can't be stopped,
+  the voice isn't reaching the voice detection (noise gate, `--speakers`, phone echo
+  cancellation): Enter (terminal) and « Interrompre » (phone) cut it off without the mic.
 - `journalctl -k | grep SCO` and `journalctl --user | grep "audio transport"` for the
   headset.

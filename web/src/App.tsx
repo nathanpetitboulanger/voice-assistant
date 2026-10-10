@@ -22,11 +22,18 @@ const TOPICS: Record<string, string> = {
 
 const REQUESTS: Record<string, string> = {
   card_block: "opposition sur la carte",
-  complaint: "réclamation",
   pin_reissue: "réédition du code",
   password_reset: "nouveau mot de passe",
   appointment: "rendez-vous",
 };
+
+// The recap PDFs to download, by the tool that makes them.
+const RECAPS: Record<string, { label: string; file: string }> = {
+  send_loan_to_advisor: { label: "du crédit", file: "credit" },
+  send_complaint: { label: "de la réclamation", file: "reclamation" },
+};
+
+type Recap = { url: string; name: string; label: string };
 
 // Errors that just mean "nothing to cancel" or "nothing said" in push-to-talk.
 const HARMLESS_ERRORS = ["response_cancel_not_active", "input_audio_buffer_commit_empty"];
@@ -48,6 +55,8 @@ function describeCall(name: string, args: string): string {
       return `Simulation : ${a.amount} € sur ${a.months} mois`;
     case "send_loan_to_advisor":
       return "Transmission au conseiller crédit";
+    case "send_complaint":
+      return "Transmission de la réclamation";
     case "start_request":
       return `Demande : ${REQUESTS[a.kind] ?? a.kind}`;
     case "transfer_to_advisor":
@@ -57,8 +66,7 @@ function describeCall(name: string, args: string): string {
   }
 }
 
-function describeResult(output: string): string | null {
-  const r = parse(output);
+function describeResult(r: any): string | null {
   if (r.reference) return `${r.request} · n° ${r.reference}`;
   if (r.ticket) return `${r.team} · ${r.when} · n° ${r.ticket}`;
   if (r.monthly_payment_eur) return `Simulation : ${r.monthly_payment_eur} € par mois`;
@@ -80,6 +88,8 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [pushToTalk, setPushToTalk] = useState(savedPushToTalk);
   const [talking, setTalking] = useState(false);
+  // The recap PDFs (loan, complaint) once passed on to an advisor: the last of each.
+  const [recaps, setRecaps] = useState<Record<string, Recap>>({});
 
   const call = useRef<Call | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
@@ -87,6 +97,7 @@ export default function App() {
   const speaking = useRef(false);
   const wakeLock = useRef<WakeLockSentinel | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  const toolNames = useRef(new Map<string, string>()); // by call_id, for the results
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
@@ -142,14 +153,27 @@ export default function App() {
         const calls = e.response.output.filter(
           (item: ServerEvent) => item.type === "function_call",
         );
-        for (const c of calls) upsert(c.call_id, "action", describeCall(c.name, c.arguments));
+        for (const c of calls) {
+          toolNames.current.set(c.call_id, c.name);
+          upsert(c.call_id, "action", describeCall(c.name, c.arguments));
+        }
         if (calls.length) setTurn("thinking");
         break;
       }
       case "conversation.item.done": // the server's tool results, when they reach us
         if (e.item.type === "function_call_output") {
-          const text = describeResult(e.item.output);
+          const result = parse(e.item.output);
+          const text = describeResult(result);
           if (text) upsert(e.item.call_id, "action", text);
+          const tool = toolNames.current.get(e.item.call_id) ?? "";
+          if (result.pdf && RECAPS[tool]) {
+            const { label, file } = RECAPS[tool];
+            const name = `recapitulatif-${file}-${result.reference.replaceAll(" ", "-")}.pdf`;
+            setRecaps((all) => ({
+              ...all,
+              [tool]: { url: `/api/recaps/${result.pdf}`, name, label },
+            }));
+          }
         }
         break;
       case "error":
@@ -184,6 +208,8 @@ export default function App() {
     setPhase("connecting");
     setNotice("Connexion…");
     setMessages([]);
+    setRecaps({});
+    toolNames.current.clear();
     try {
       call.current = await startCall({
         pushToTalk,
@@ -196,7 +222,7 @@ export default function App() {
       setNotice(
         pushToTalk
           ? "En ligne. Touchez « Parler », posez votre question, puis touchez « Envoyer »."
-          : "En ligne. Parlez quand vous voulez, vous pouvez couper la parole à l'assistant.",
+          : "En ligne. Parlez quand vous voulez. Pour couper la parole à l'assistant, parlez ou touchez « Interrompre ».",
       );
       keepScreenOn(true);
     } catch (error) {
@@ -209,11 +235,18 @@ export default function App() {
     }
   }
 
+  // Cuts the assistant off, greeting included: talking over it doesn't always work (the
+  // phone's echo cancellation can muffle the voice while the speaker plays).
+  function interrupt() {
+    const c = call.current!;
+    if (responding.current) c.send({ type: "response.cancel" });
+    if (speaking.current) c.send({ type: "output_audio_buffer.clear" });
+  }
+
   // Push-to-talk: "Parler" interrupts the assistant and opens the mic, "Envoyer" sends.
   function talk() {
     const c = call.current!;
-    if (speaking.current) c.send({ type: "output_audio_buffer.clear" });
-    if (responding.current) c.send({ type: "response.cancel" });
+    interrupt();
     c.send({ type: "input_audio_buffer.clear" });
     c.setMic(true);
     setTalking(true);
@@ -264,6 +297,13 @@ export default function App() {
       </section>
 
       <footer>
+        {/* Kept after hanging up, so the customer can download them once the call is over. */}
+        {Object.values(recaps).map((recap) => (
+          <a key={recap.url} className="big recap" href={recap.url} download={recap.name}>
+            Télécharger le récapitulatif {recap.label} (PDF)
+          </a>
+        ))}
+
         {phase === "live" && (
           <p className={`turn ${turn}`} aria-hidden="true">
             {TURN_LABELS[turn]}
@@ -291,11 +331,13 @@ export default function App() {
             {talking ? "Envoyer" : "Parler"}
           </button>
         )}
+        {phase === "live" && !pushToTalk && (
+          <button className="big talk" onClick={interrupt}>
+            Interrompre
+          </button>
+        )}
         {phase === "live" && (
-          <button
-            className={`big hangup ${pushToTalk ? "small" : ""}`}
-            onClick={() => call.current?.hangUp()}
-          >
+          <button className="big hangup small" onClick={() => call.current?.hangUp()}>
             Raccrocher
           </button>
         )}

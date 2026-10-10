@@ -176,6 +176,20 @@ footer {
   color: #fff;
 }
 
+.big.recap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 24px;
+  text-align: center;
+  text-decoration: none;
+  background: var(--surface);
+  color: var(--brand);
+  border: 3px solid var(--brand);
+  font-size: 1.3rem;
+  min-height: 72px;
+}
+
 .big.hangup {
   background: var(--danger);
   color: #fff;

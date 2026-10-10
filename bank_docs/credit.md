@@ -42,7 +42,8 @@ sans l'accord du client.
 3. Le client change la durée ou le montant : nouvelle simulation tout de suite, avec
    les mêmes autres réponses, sans rien redemander.
 4. Quand le client le demande : transmission de la simulation à un conseiller
-   (send_loan_to_advisor), puis récapitulatif au client et numéro de référence.
+   (send_loan_to_advisor), puis récapitulatif au client, numéro de référence, et
+   récapitulatif en PDF à télécharger dans l'application.
    - Prêt personnel, auto ou travaux : un conseiller crédit rappelle le client sous
      48 heures. Si le crédit est accordé : contrat lisible avec un lecteur d'écran,
      signature électronique, délai de rétractation de 14 jours.

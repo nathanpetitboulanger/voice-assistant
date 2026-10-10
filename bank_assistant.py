@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["websockets>=14", "sounddevice", "numpy", "python-dotenv"]
+# dependencies = ["websockets>=14", "sounddevice", "numpy", "python-dotenv", "weasyprint"]
 # ///
 """Voice banking assistant for blind and visually impaired customers.
 
@@ -14,8 +14,12 @@ Same audio options as realtime_demo.py.
     uv run bank_assistant.py --push-to-talk  # noisy room: Enter to talk, Enter to send
 """
 
-from bank_tools import INSTRUCTIONS, TOOLS, run_tool
+from functools import partial
+
+from bank_tools import INSTRUCTIONS, TOOLS, Conversation, run_tool
 from realtime_demo import parse_args, run
 
 if __name__ == "__main__":
-    run(parse_args(__doc__), INSTRUCTIONS, TOOLS, run_tool)
+    # One conversation per run: it keeps the procedure (démarche) in progress.
+    run_in_conversation = partial(run_tool, conversation=Conversation())
+    run(parse_args(__doc__), INSTRUCTIONS, TOOLS, run_in_conversation)

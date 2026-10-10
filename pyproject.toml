@@ -17,6 +17,7 @@ server = [
     "httpx>=0.28.1",
     "python-dotenv>=1.2.4",
     "uvicorn>=0.54.0",
+    "weasyprint>=70",
     "websockets>=17.2",
 ]
 

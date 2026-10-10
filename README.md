@@ -14,7 +14,7 @@ OPENAI_API_KEY=sk-...
 ## Run
 
 ```bash
-uv run realtime_demo.py              # headset: interrupt the assistant any time
+uv run realtime_demo.py              # headset: interrupt the assistant any time (or Enter)
 uv run realtime_demo.py --speakers   # laptop speakers: mic muted while it talks
 uv run realtime_demo.py --push-to-talk  # noisy room: Enter to talk, Enter to send
 ```
@@ -63,24 +63,36 @@ A voice assistant for a bank's app, for blind and visually impaired customers: f
 four procedures (complaint, lost code, loan, wealth management) in five steps:
 
 1. Express: the customer says what they need in their own words.
-2. Understand: the assistant rephrases it and asks the useful details, one at a time.
-3. Explain: it answers from the bank's procedure sheet (`get_procedure`) and names it.
-4. Act: it files the request by voice (`start_request`: block a card, complaint, PIN
-   by mail, password reset, appointment) after a clear yes, and reads the reference
-   number in groups. For a loan, it first asks the five answers it needs (purpose,
-   amount, duration, net monthly income, age; the rate comes from the purpose), then
-   runs the simulation (`simulate_loan`), and runs it again as soon as the customer
-   changes the duration.
+2. Understand: as soon as it knows the topic, the assistant reads the bank's procedure
+   sheet (`get_procedure`) and asks the details it lists, one at a time. It repeats
+   each number it hears ("Dix mille euros, noté."), so a misheard one gets corrected.
+   One procedure (démarche) at a time: to start another before the current one is
+   finished, it first says it stops it ("J'arrête la démarche crédit en cours, pour
+   commencer la démarche réclamation.").
+3. Explain: it answers from the sheet only, and names it.
+4. Act: it files the request by voice (`start_request`: block a card, PIN by mail,
+   password reset, appointment) after a clear yes, always asked for a card block (it
+   can't be undone), and reads the reference number in groups. For a loan, it first
+   asks the five answers it needs (purpose, amount, duration, net monthly income, age;
+   the rate comes from the purpose), then runs the simulation (`simulate_loan`), and
+   runs it again as soon as the customer changes the duration.
 5. Hand over: it passes the customer to a human (`transfer_to_advisor`) with a summary,
    so they don't have to repeat anything. A loan simulation is passed on to a loan
-   advisor (`send_loan_to_advisor`), after reading the customer a recap.
+   advisor (`send_loan_to_advisor`): the assistant reads the recap and the reference
+   number, and the phone page offers the recap as a PDF to download (tagged PDF/UA, so
+   screen readers read it; `recap_pdf.py`, saved under `recaps/` in the terminal).
+   A complaint takes four answers (reason, facts, date of the problem, product), then
+   goes to an advisor at once (`send_complaint`): the assistant says it will be handled
+   as soon as possible, reads the recap and the reference number, and the phone page
+   offers the recap as a PDF too. A complaint that isn't about the bank is turned down.
+   Anything else (balance, transfers...) gets an advisor, not a pretend answer.
 
-It never refers to the screen, never lets the customer say a PIN or password, and
-offers to block a lost card first. Files:
+It greets in one sentence, never refers to the screen, never lets the customer say a
+PIN or password, and offers to block a lost card first. Files:
 
 - `bank_assistant.py`: the terminal version; reuses the audio and Realtime loop of
   `realtime_demo.py`.
-- `bank_tools.py`: the instructions and the five tools. Requests and handovers are
+- `bank_tools.py`: the instructions and the six tools. Requests and handovers are
   simulated: the terminal (or `docker compose logs`) shows the case file the back
   office or the advisor would receive.
 - `bank_docs/`: one procedure sheet per topic, in French. Their rates, fees, delays and
@@ -96,8 +108,9 @@ mille euros", "On m'a prélevé des frais que je ne comprends pas".
 
 https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no code). Tap
 « Appeler » and talk: the phone's browser cancels the echo, so you can use its speaker
-and still interrupt the assistant. In a noisy room, tick « Pièce bruyante »: tap
-« Parler », ask, tap « Envoyer ». Keep the screen on during a call (the page asks the
+and still interrupt the assistant. The echo cancellation can also muffle your voice
+while the assistant talks, so « Interrompre » cuts it off too (greeting included). In a
+noisy room, tick « Pièce bruyante »: tap « Parler », ask, tap « Envoyer ». Keep the screen on during a call (the page asks the
 phone to): a locked phone stops the mic.
 
 How it works: the phone talks to the Realtime API directly over WebRTC. `server.py`

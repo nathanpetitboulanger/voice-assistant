@@ -5,7 +5,8 @@
 """Voice Q&A agent over the documents in docs/, using the OpenAI Realtime API.
 
 Ask a question out loud; the agent looks it up with the list_documents and
-read_document tools (see doc_tools.py) and answers. Interrupt it any time by talking.
+read_document tools (see doc_tools.py) and answers. Interrupt it any time by talking,
+or by pressing Enter.
 
     uv run realtime_demo.py              # headphones (full duplex, barge-in)
     uv run realtime_demo.py --speakers   # laptop speakers (mic muted while it talks)
@@ -315,12 +316,8 @@ async def stop_playback(ws, player):
         print(" [interrupted]")
 
 
-async def push_to_talk(ws, player, talking):
-    """Enter starts your turn, Enter again sends it.
-
-    In a noisy room, voice detection takes the people around you for you: it waits
-    for you to finish while they talk, and cancels its answers when they speak up.
-    """
+def enter_presses():
+    """A queue that gets an item each time Enter is pressed."""
     loop = asyncio.get_running_loop()
     enter = asyncio.Queue()
 
@@ -331,10 +328,34 @@ async def push_to_talk(ws, player, talking):
             loop.remove_reader(sys.stdin)
 
     loop.add_reader(sys.stdin, on_stdin)
+    return enter
+
+
+async def stop_answer(ws, player):
+    """Cut the assistant off: what it's saying and the rest of its answer."""
+    await stop_playback(ws, player)
+    await send(ws, {"type": "response.cancel"})
+
+
+async def enter_interrupts(ws, player):
+    """Enter cuts the assistant off, greeting included, when talking over it doesn't
+    work: behind the noise gate, or with --speakers (mic muted while it talks)."""
+    enter = enter_presses()
     while True:
         await enter.get()
-        await stop_playback(ws, player)
-        await send(ws, {"type": "response.cancel"})
+        await stop_answer(ws, player)
+
+
+async def push_to_talk(ws, player, talking):
+    """Enter starts your turn, Enter again sends it.
+
+    In a noisy room, voice detection takes the people around you for you: it waits
+    for you to finish while they talk, and cancels its answers when they speak up.
+    """
+    enter = enter_presses()
+    while True:
+        await enter.get()
+        await stop_answer(ws, player)
         await send(ws, {"type": "input_audio_buffer.clear"})
         talking.set()
         print("  [listening... press Enter to send]", flush=True)
@@ -358,7 +379,10 @@ async def run_tool_calls(ws, response, run_tool):
                 "item": {
                     "type": "function_call_output",
                     "call_id": call["call_id"],
-                    "output": run_tool(call["name"], call["arguments"]),
+                    # in a thread: a recap PDF takes half a second
+                    "output": await asyncio.to_thread(
+                        run_tool, call["name"], call["arguments"]
+                    ),
                 },
             },
         )
@@ -394,7 +418,7 @@ async def handle_events(ws, player, run_tool):
                 # response.create while one is still active would be rejected.
                 await run_tool_calls(ws, response, run_tool)
             case "error":
-                # push-to-talk cancels the current answer whether or not there is one
+                # Enter cancels the current answer whether or not there is one
                 if event["error"].get("code") != "response_cancel_not_active":
                     print(f"\n[error] {event['error'].get('message')}")
 
@@ -459,8 +483,11 @@ async def main(args, instructions, tools, run_tool):
             start = "Press Enter, ask your question, press Enter again."
         else:
             gate = NoiseGate(args.noise_gate)
-            tasks.append(stream_mic(ws, player, args.speakers, gate=gate))
-            start = "Start talking."
+            tasks += [
+                stream_mic(ws, player, args.speakers, gate=gate),
+                enter_interrupts(ws, player),
+            ]
+            start = "Start talking (Enter cuts the assistant off)."
         try:
             print(f"Connected to {args.model}. {start} Ctrl+C to quit.")
             if not args.push_to_talk and args.noise_gate > -90:

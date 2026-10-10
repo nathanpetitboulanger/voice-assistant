@@ -9,14 +9,20 @@ COPY web/ ./
 RUN npm run build
 
 FROM python:3.12-slim
+# WeasyPrint (the loan recap PDF) needs Pango, and a font: the slim image has none.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 \
+       libharfbuzz-subset0 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /bin/uv
+# RECAPS_DIR: /app isn't writable by nobody; the recaps go when the container restarts.
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 \
-    PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+    PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 RECAPS_DIR=/tmp/recaps
 WORKDIR /app
 # Only the server's dependencies: no sounddevice, PortAudio or numpy.
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --only-group server --no-install-project
-COPY server.py bank_tools.py ./
+COPY server.py bank_tools.py recap_pdf.py ./
 COPY bank_docs/ bank_docs/
 COPY --from=web /web/dist web/dist/
 USER nobody
