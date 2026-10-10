@@ -1,7 +1,7 @@
 # Voice document assistant
 
 Ask questions out loud about the documents in `docs/`; the assistant looks them up and
-answers by voice. Built on the OpenAI Realtime API (`gpt-realtime-2.1`).
+answers by voice. Built on the OpenAI Realtime API (`gpt-realtime-2.1-mini`).
 
 ## Setup
 
@@ -65,18 +65,22 @@ four procedures (complaint, lost code, loan, wealth management) in five steps:
 1. Express: the customer says what they need in their own words.
 2. Understand: the assistant rephrases it and asks the useful details, one at a time.
 3. Explain: it answers from the bank's procedure sheet (`get_procedure`) and names it.
-4. Act: it runs a loan simulation (`simulate_loan`), or files the request by voice
-   (`start_request`: block a card, complaint, PIN by mail, password reset, loan,
-   appointment) after a clear yes, and reads the reference number in groups.
+4. Act: it files the request by voice (`start_request`: block a card, complaint, PIN
+   by mail, password reset, appointment) after a clear yes, and reads the reference
+   number in groups. For a loan, it first asks the five answers it needs (purpose,
+   amount, duration, net monthly income, age; the rate comes from the purpose), then
+   runs the simulation (`simulate_loan`), and runs it again as soon as the customer
+   changes the duration.
 5. Hand over: it passes the customer to a human (`transfer_to_advisor`) with a summary,
-   so they don't have to repeat anything.
+   so they don't have to repeat anything. A loan simulation is passed on to a loan
+   advisor (`send_loan_to_advisor`), after reading the customer a recap.
 
 It never refers to the screen, never lets the customer say a PIN or password, and
 offers to block a lost card first. Files:
 
 - `bank_assistant.py`: the terminal version; reuses the audio and Realtime loop of
   `realtime_demo.py`.
-- `bank_tools.py`: the instructions and the four tools. Requests and handovers are
+- `bank_tools.py`: the instructions and the five tools. Requests and handovers are
   simulated: the terminal (or `docker compose logs`) shows the case file the back
   office or the advisor would receive.
 - `bank_docs/`: one procedure sheet per topic, in French. Their rates, fees, delays and

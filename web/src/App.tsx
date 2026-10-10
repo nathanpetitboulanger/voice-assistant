@@ -25,7 +25,6 @@ const REQUESTS: Record<string, string> = {
   complaint: "réclamation",
   pin_reissue: "réédition du code",
   password_reset: "nouveau mot de passe",
-  loan_application: "demande de crédit",
   appointment: "rendez-vous",
 };
 
@@ -47,6 +46,8 @@ function describeCall(name: string, args: string): string {
       return `Fiche ${TOPICS[a.topic] ?? a.topic}`;
     case "simulate_loan":
       return `Simulation : ${a.amount} € sur ${a.months} mois`;
+    case "send_loan_to_advisor":
+      return "Transmission au conseiller crédit";
     case "start_request":
       return `Demande : ${REQUESTS[a.kind] ?? a.kind}`;
     case "transfer_to_advisor":

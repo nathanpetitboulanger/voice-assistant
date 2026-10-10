@@ -477,7 +477,7 @@ def parse_args(description):
     parser = argparse.ArgumentParser(
         description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--model", default="gpt-realtime-2.1")
+    parser.add_argument("--model", default="gpt-realtime-2.1-mini")
     parser.add_argument(
         "--voice", default="marin", help="e.g. marin, cedar, alloy, verse"
     )

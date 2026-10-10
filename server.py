@@ -28,7 +28,7 @@ from bank_tools import INSTRUCTIONS, TOOLS, run_tool
 
 load_dotenv()
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-MODEL = os.environ.get("REALTIME_MODEL", "gpt-realtime-2.1")
+MODEL = os.environ.get("REALTIME_MODEL", "gpt-realtime-2.1-mini")
 REALTIME_URL = "https://api.openai.com/v1/realtime"
 WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).parent / "web" / "dist"))
 

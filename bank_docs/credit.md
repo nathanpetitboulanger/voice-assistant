@@ -1,12 +1,25 @@
 # Crédit : prêt personnel, auto, travaux, immobilier, simulation
 
-Contenu d'exemple pour la démo : les taux, montants et délais de cette fiche sont
+Contenu d'exemple pour la démo : les taux, montants, âges et délais de cette fiche sont
 fictifs.
 
-## Clarifier le projet
+## Les cinq informations à recueillir
 
-L'objet du crédit (voiture, travaux, achat immobilier, projet personnel), le montant,
-la durée souhaitée, et pour l'immobilier l'apport et les revenus mensuels nets.
+Avant toute simulation, il faut les cinq, une question à la fois :
+
+- le motif : voiture, travaux, rénovation énergétique, achat immobilier, ou autre
+  projet personnel. Il fixe le type de prêt et son taux : le client n'a pas à le
+  donner ;
+- le montant à emprunter ;
+- l'étalement : la durée du remboursement, en mois ou en années ;
+- les ressources : les revenus nets du client chaque mois (salaire, pension,
+  allocations) ;
+- l'âge du client.
+
+Pourquoi ces questions : uniquement pour faire le calcul. L'âge, parce qu'il faut être
+majeur et que le crédit doit être remboursé avant 80 ans ; les revenus, pour vérifier
+que la mensualité reste supportable (pas plus de 35 % des revenus). Rien n'est transmis
+sans l'accord du client.
 
 ## Les options
 
@@ -23,16 +36,34 @@ la durée souhaitée, et pour l'immobilier l'apport et les revenus mensuels nets
 
 ## Étapes
 
-1. Simulation immédiate et sans engagement (simulate_loan) : mensualité, taux, coût
-   total.
-2. Prêt personnel, auto ou travaux : l'assistant peut déposer la demande
-   (start_request, type loan_application). Réponse de principe par SMS sous 48 heures,
-   contrat lisible avec un lecteur d'écran, signature électronique. Délai de
-   rétractation : 14 jours.
-3. Prêt immobilier : rendez-vous avec un conseiller crédit immobilier
-   (start_request, type appointment, ou transfer_to_advisor, équipe mortgage). Pièces :
-   3 derniers bulletins de salaire, dernier avis d'imposition, 3 mois de relevés de
-   compte, compromis de vente. Délai de réflexion de 10 jours après réception de l'offre.
+1. Recueillir les cinq informations. Aucun calcul avant de les avoir toutes.
+2. Simulation immédiate et sans engagement (simulate_loan) : mensualité, taux, coût
+   des intérêts.
+3. Le client change la durée ou le montant : nouvelle simulation tout de suite, avec
+   les mêmes autres réponses, sans rien redemander.
+4. Quand le client le demande : transmission de la simulation à un conseiller
+   (send_loan_to_advisor), puis récapitulatif au client et numéro de référence.
+   - Prêt personnel, auto ou travaux : un conseiller crédit rappelle le client sous
+     48 heures. Si le crédit est accordé : contrat lisible avec un lecteur d'écran,
+     signature électronique, délai de rétractation de 14 jours.
+   - Prêt immobilier : un conseiller crédit immobilier rappelle sous 24 heures. Pièces
+     à préparer : 3 derniers bulletins de salaire, dernier avis d'imposition, 3 mois de
+     relevés de compte, compromis de vente. Délai de réflexion de 10 jours après
+     réception de l'offre.
+
+## Les mots à expliquer
+
+- Mensualité : la somme remboursée chaque mois.
+- Étalement, ou durée : le temps sur lequel on rembourse, par exemple 48 mois, soit
+  4 ans.
+- TAEG, taux annuel effectif global : le coût total du crédit par an, frais compris,
+  en pourcentage du montant emprunté. C'est le chiffre qui permet de comparer deux
+  crédits.
+- Coût des intérêts : ce que le crédit coûte en plus du montant emprunté.
+- Taux d'endettement : la part des revenus qui part chaque mois dans les crédits.
+- Apport : l'argent personnel mis dans un achat immobilier, en plus du prêt.
+- Délai de rétractation : le temps pendant lequel on peut annuler le crédit après
+  l'avoir signé, sans frais.
 
 ## Mention obligatoire
 
