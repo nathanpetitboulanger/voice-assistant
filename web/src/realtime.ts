@@ -1,8 +1,8 @@
-// The phone talks to the OpenAI Realtime API directly over WebRTC. Our server only
-// forwards the offer (with the API key and the session) and runs the tools on its own
-// connection to the call; this side plays the audio and shows the events.
+// Voice mode: the phone talks to the OpenAI Realtime API directly over WebRTC. Our
+// server only forwards the offer (with the API key and the session) and runs the tools
+// on its own connection to the call; this side plays the audio and shows the events.
 
-export type ServerEvent = { type: string; [key: string]: any };
+import type { ServerEvent } from "./tools";
 
 export type Call = {
   send: (event: object) => void;

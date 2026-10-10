@@ -3,12 +3,21 @@
 Voice Q&A demo over `docs/` with the OpenAI Realtime API (`realtime_demo.py`).
 `bank_assistant.py` reuses its audio loop (`parse_args`, `run`) for a banking assistant
 for blind customers: tools in `bank_tools.py`, procedure sheets in `bank_docs/`.
-`server.py` + `web/` is the phone version of the bank assistant (WebRTC to OpenAI, tools
-run server-side over the call's `call_id` WebSocket); deployed with `deploy/deploy.sh`.
-`INSTRUCTIONS` lives in `bank_tools.py` so the server doesn't import the audio code.
+`server.py` + `web/` is the web version of the bank assistant: a public site (no login)
+with Banque Populaire's look, by voice (WebRTC to OpenAI, tools run server-side over the
+call's `call_id` WebSocket) or in writing (`/api/chat` WebSocket: the server relays a
+text-only Realtime session, same model and tools, `TEXT_INSTRUCTIONS`); deployed with
+`deploy/deploy.sh`. The host Nginx needs the Upgrade headers for `/api/chat` (see
+`deploy/nginx-host.conf.template`), or the written chat gets a 404. In `web/src`,
+`tools.ts` turns the tool calls into chips, cards and démarches for both modes, keep its
+labels in sync with `bank_tools.py`; the site's texts (`site.ts`) give no figures, the
+assistant does. `INSTRUCTIONS` lives in `bank_tools.py` so the server doesn't import the
+audio code.
 Keep it short (gpt-realtime mini follows fewer rules well): topic rules go in the
 procedure sheets, and fixed wording (loan figures, legal notice, recap) goes in the
-tools' `say_word_for_word`. The recap PDFs, loan and complaint (`recap_pdf.py`,
+tools' `say_word_for_word`. Everything the model reads (`INSTRUCTIONS`, tool and
+parameter descriptions, tool errors) is in French, for a French accent; names and
+enum values stay in English. The recap PDFs, loan and complaint (`recap_pdf.py`,
 WeasyPrint, needs Pango) go to `RECAPS_DIR` (`recaps/`, `/tmp/recaps` in Docker), served
 at `/api/recaps/`. One procedure (démarche) at a time per call: `Conversation` in
 `bank_tools.py` (one per call in `server.py`, one per run in `bank_assistant.py`) only

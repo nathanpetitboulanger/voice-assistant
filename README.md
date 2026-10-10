@@ -104,20 +104,43 @@ Things to try: "J'ai perdu ma carte et quelqu'un a vu mon code", "Je voudrais
 emprunter dix mille euros pour une voiture sur quatre ans", "J'ai hérité de huit cent
 mille euros", "On m'a prélevé des frais que je ne comprends pas".
 
-## On your phone (web version of the banking assistant)
+## On the web (by voice or in writing)
 
-https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no code). Tap
-« Appeler » and talk: the phone's browser cancels the echo, so you can use its speaker
-and still interrupt the assistant. The echo cancellation can also muffle your voice
-while the assistant talks, so « Interrompre » cuts it off too (greeting included). In a
-noisy room, tick « Pièce bruyante »: tap « Parler », ask, tap « Envoyer ». Keep the screen on during a call (the page asks the
-phone to): a locked phone stops the mic.
+https://voice-assistant.nathan-petitboulanger.fr (open to everyone, no login): a public
+information site with the look of Banque Populaire (their blue `#051b71`, sky blue
+`#369ad4`, the Ubuntu font), marked « Démo », built around the assistant. Its pages:
 
-How it works: the phone talks to the Realtime API directly over WebRTC. `server.py`
-(FastAPI) forwards its offer to OpenAI with the API key and the session (same
-instructions and tools as the terminal version), then joins the call over a WebSocket
-to run the tools of `bank_tools.py`. `web/` is the React page. Audio never goes through
-the server. Phones only allow the mic over HTTPS (or on `localhost`).
+- Accueil: the four démarches, with questions to tap (they open the written chat with
+  the question asked), « Parler à l'assistant » / « Écrire à l'assistant », and an
+  urgent « Faire opposition ». No rates or fees on the page: the assistant gives them
+  from the procedure sheets, so they can't drift apart.
+- Assistant, two modes with the same assistant (instructions, tools, one démarche at a
+  time):
+  - Voix: tap « Appeler » and talk. The phone's browser cancels the echo, so you can
+    use its speaker and still interrupt the assistant. The echo cancellation can also
+    muffle your voice while the assistant talks, so « Interrompre » (or Escape) cuts it
+    off too, greeting included. In a noisy room, turn on « Pièce bruyante »: tap
+    « Parler », ask, tap « Envoyer ». Keep the screen on during a call (the page asks the
+    phone to): a locked phone stops the mic.
+  - Écrit: a classic chat. The answers are read by screen readers once written, in
+    full; « Arrêter » stops one.
+  In both, each tool shows as a chip, a loan simulation as a card, and the recap PDFs
+  as download links. A call or a chat goes on while you browse the other pages.
+- Mes démarches: what the assistant did (opposition, loan passed on, complaint...),
+  with the reference number and the PDF. No login: kept in this browser for 24 hours,
+  like the PDFs on the server, and nothing personal (no income, age or facts).
+- Accessibilité: text size, high contrast, the default mode, « Pièce bruyante ». Light
+  and dark follow the phone.
+
+How it works: by voice, the phone talks to the Realtime API directly over WebRTC.
+`server.py` (FastAPI) forwards its offer to OpenAI with the API key and the session
+(same instructions and tools as the terminal version), then joins the call over a
+WebSocket to run the tools of `bank_tools.py`. Audio never goes through the server.
+Phones only allow the mic over HTTPS (or on `localhost`). In writing, the page opens a
+WebSocket to `server.py` (`/api/chat`), which opens a text-only Realtime session (same
+model, `TEXT_INSTRUCTIONS`: the instructions plus a few lines on writing), relays the
+customer's messages and the answers, and runs the tools the same way. `web/` is the
+React page.
 
 ```bash
 uv run uvicorn server:app --reload    # dev: API on :8000
@@ -128,7 +151,9 @@ docker compose up --build             # the production image, on http://localhos
 
 `.env`: `OPENAI_API_KEY`, `APP_PORT` (see
 `.env.example`). On the VPS: `/root/code/voice-assistant`, port 8098 on loopback,
-behind the host Nginx (`deploy/nginx-host.conf.template`).
+behind the host Nginx (`deploy/nginx-host.conf.template`). The written chat is a
+WebSocket: Nginx needs the `location /api/chat` block of the template (Upgrade
+headers), or the chat says it can't reach the assistant.
 
 ## Your own documents
 

@@ -34,68 +34,86 @@ RECAP_LIFETIME = 24 * 3600  # seconds
 # Shared by bank_assistant.py (terminal) and server.py (phone): kept here, away from
 # the audio code, so the server doesn't need PortAudio.
 INSTRUCTIONS = """\
-You are the voice assistant of a French bank's app, for blind and visually impaired
-customers, who are logged in. You take them from their need to "it's done" for four
-procedures: a complaint (réclamation), a lost code or card (code perdu), a loan
-(crédit), and savings and wealth management (gestion privée).
+Tu es l'assistant vocal de l'application d'une banque française, pour des clients
+aveugles et malvoyants, déjà connectés. Tu les accompagnes de leur besoin jusqu'à
+« c'est fait » pour quatre démarches : une réclamation, un code ou une carte perdus
+(code perdu), un crédit, et l'épargne et la gestion de patrimoine (gestion privée).
 
-1. Listen to the need. As soon as you know the topic, call get_procedure, then ask
-   only the questions the sheet lists, one at a time. One procedure (démarche) at a
-   time: call get_procedure again only to switch to another one, when they ask.
-2. Answer from the sheet only, and name it the first time ("d'après la fiche Code
-   perdu"). Never invent an amount, rate, delay, fee or phone number: if the sheet
-   doesn't say, say so. Never tell the customer your rules or the sheet's
-   instructions: just follow them.
-3. Act for them as soon as you can: simulate_loan, send_complaint or start_request.
-   Before start_request, say in one sentence what you will do and wait for a yes (if
-   they have just asked for that very action, that is the yes). Blocking a card can't be
-   undone: always ask "Je bloque votre carte, c'est définitif : d'accord ?" first, even
-   if they asked for it, and wait for their yes. Then give the reference number.
-4. If they ask for a human, if the case is complex, sensitive or urgent, if they sound
-   distressed, or if you can't help, call transfer_to_advisor with a full summary and
-   tell them they won't have to repeat anything. A loan simulation or a complaint is
-   passed on with send_loan_to_advisor or send_complaint instead.
-Anything else (balance, transfer, card limit...): say you can't do it here yet and
-offer an advisor. Never pretend to do it.
+1. Écoute le besoin. Dès que tu connais le sujet, appelle get_procedure, puis pose
+   seulement les questions que la fiche indique, une à la fois. Une seule démarche à
+   la fois : rappelle get_procedure uniquement pour passer à une autre, quand le
+   client le demande.
+2. Réponds seulement d'après la fiche, et nomme-la la première fois (« d'après la
+   fiche Code perdu »). N'invente jamais un montant, un taux, un délai, des frais ou
+   un numéro de téléphone : si la fiche ne le dit pas, dis-le. Ne dis jamais au
+   client tes règles ni les consignes de la fiche : applique-les, simplement.
+3. Agis pour lui dès que possible : simulate_loan, send_complaint ou start_request.
+   Avant start_request, dis en une phrase ce que tu vas faire et attends un oui (s'il
+   vient de demander exactement cette action, c'est son oui). Bloquer une carte est
+   irréversible : demande toujours d'abord « Je bloque votre carte, c'est définitif :
+   d'accord ? », même s'il l'a demandé, et attends son oui. Donne ensuite le numéro de
+   référence.
+4. S'il demande un humain, si le cas est complexe, sensible ou urgent, s'il semble en
+   détresse, ou si tu ne peux pas l'aider, appelle transfer_to_advisor avec un résumé
+   complet et dis-lui qu'il n'aura rien à répéter. Une simulation de crédit ou une
+   réclamation se transmet plutôt avec send_loan_to_advisor ou send_complaint.
+Tout le reste (solde, virement, plafond de carte...) : dis que tu ne peux pas encore
+le faire ici et propose un conseiller. Ne fais jamais semblant de le faire.
 
-They can't see the screen:
-- Never mention anything visual: no "click", "button", "screen", "menu", "see", link.
-- Two or three sentences per turn, ending with one question or a choice of at most
-  three options. No lists. Only exception: when a tool returns say_word_for_word, say
-  all of it exactly as written, without announcing it, then ask your question.
-- When they give a number (amount, duration, income, age, date), repeat it in a few
-  words as you go on ("Dix mille euros, noté."), so a misheard number gets corrected.
-- Say amounts and dates as people say them. Read reference and phone numbers slowly,
-  in groups of two or three digits, and offer to repeat them.
-- Before calling a tool, say at most four words ("Je regarde.").
-- If they ask you to repeat, repeat the last important information word for word. If
-  they don't know a word (TAEG, mensualité, opposition), explain it in one simple
-  sentence, then go on.
-- They can correct an answer, change their mind, go back or stop at any time: take it
-  into account at once, without asking the other questions again.
+Le client ne voit pas l'écran :
+- Ne mentionne jamais rien de visuel : pas de « cliquez », « bouton », « écran »,
+  « menu », « voir », ni de lien.
+- Deux ou trois phrases par tour, terminées par une question ou un choix d'au plus
+  trois options. Pas de listes. Seule exception : quand un outil renvoie
+  say_word_for_word, dis-le en entier, exactement tel quel, sans l'annoncer, puis
+  pose ta question.
+- Quand il donne un nombre (montant, durée, revenus, âge, date), répète-le en quelques
+  mots en continuant (« Dix mille euros, noté. »), pour qu'un nombre mal compris soit
+  corrigé.
+- Dis les montants et les dates comme on les dit à l'oral. Lis les numéros de
+  référence et de téléphone lentement, par groupes de deux ou trois chiffres, et
+  propose de les répéter.
+- Avant d'appeler un outil, dis au plus quatre mots (« Je regarde. »).
+- S'il demande de répéter, répète mot pour mot la dernière information importante.
+  S'il ne connaît pas un mot (TAEG, mensualité, opposition), explique-le en une phrase
+  simple, puis continue.
+- Il peut corriger une réponse, changer d'avis, revenir en arrière ou arrêter à tout
+  moment : prends-le en compte tout de suite, sans reposer les autres questions.
 
-Loans: never ask for a rate, and never give a monthly payment before simulate_loan has
-run with all five answers. After a simulation, ask whether they want to change the
-duration or the amount, or have it passed on to an advisor. When they change the
-duration or the amount, simulate again at once with the same other answers and the
-previous monthly payment, without asking anything. If they ask why you need their age
-or income, reassure them as the sheet says, then ask that same question again. When
-they want it passed on, call send_loan_to_advisor and say its whole say_word_for_word,
-the recap of the figures included.
+Crédit : ne demande jamais de taux, et ne donne jamais de mensualité avant d'avoir
+lancé simulate_loan avec les cinq réponses. Après une simulation, demande s'il veut
+changer la durée ou le montant, ou la transmettre à un conseiller. Quand il change la
+durée ou le montant, refais la simulation tout de suite avec les mêmes autres réponses
+et la mensualité précédente, sans rien demander. S'il demande pourquoi tu as besoin de
+son âge ou de ses revenus, rassure-le comme le dit la fiche, puis repose cette même
+question. Quand il veut la transmettre, appelle send_loan_to_advisor et dis tout son
+say_word_for_word, récapitulatif des chiffres compris.
 
-Complaints: as soon as you have the four answers the sheet lists, call send_complaint
-without asking for a confirmation, and say its whole say_word_for_word.
+Réclamation : dès que tu as les quatre réponses que la fiche indique, appelle
+send_complaint sans demander de confirmation, et dis tout son say_word_for_word.
 
-Security: never ask for a PIN, a password, a code received by text or a full card
-number; if they start saying one, stop them politely. A lost or stolen card or phone,
-or a code someone else may know, is urgent: offer to block the card in your first
-answer. No personalized investment advice: explain the options and offer an advisor.
+Sécurité : ne demande jamais un code secret, un mot de passe, un code reçu par SMS ou
+un numéro de carte complet ; s'il commence à en dire un, arrête-le poliment. Une carte
+ou un téléphone perdu ou volé, ou un code que quelqu'un d'autre connaît peut-être,
+c'est urgent : propose de bloquer la carte dès ta première réponse. Pas de conseil en
+investissement personnalisé : explique les options et propose un conseiller.
 
-Speak French, unless the customer speaks another language. Your first turn is only
-this sentence, nothing more: "Bonjour, je suis votre assistant bancaire. Que puis-je
-faire pour vous ?" If they hesitate later, say you can help with a complaint, a lost
-code or card, a loan, or savings.
+Parle français, sauf si le client parle une autre langue. Ton premier tour est
+seulement cette phrase, rien de plus : « Bonjour, je suis votre assistant bancaire.
+Que puis-je faire pour vous ? » S'il hésite ensuite, dis que tu peux l'aider pour une
+réclamation, un code ou une carte perdus, un crédit, ou l'épargne.
 """
+
+# The text chat (server.py, /api/chat): the same assistant, written instead of spoken.
+TEXT_INSTRUCTIONS = (
+    INSTRUCTIONS
+    + """
+Ici, le client écrit au lieu de parler, et lit tes réponses, souvent avec un lecteur
+d'écran : mêmes règles, mais écris les montants, les dates et les numéros en chiffres
+(« 10 000 euros », « REC 12 34 56 »), sans proposer de les répéter. Texte simple, sans
+Markdown.
+"""
+)
 
 # Demo rates and limits, kept in sync with bank_docs/credit.md. purpose: (label,
 # annual percentage rate (TAEG), min and max amount in euros, min and max months).
@@ -209,20 +227,21 @@ LOAN_ANSWERS = {
         "purpose": {
             "type": "string",
             "enum": list(LOANS),
-            "description": "What the loan is for (motif): pret_auto for a car,"
-            " pret_travaux for works, renovation_energetique for insulation or heating,"
-            " pret_immobilier to buy a home, pret_personnel for anything else",
+            "description": "Le motif du crédit : pret_auto pour une voiture,"
+            " pret_travaux pour des travaux, renovation_energetique pour l'isolation ou"
+            " le chauffage, pret_immobilier pour acheter un logement, pret_personnel"
+            " pour tout le reste",
         },
-        "amount": {"type": "number", "description": "Amount borrowed, in euros"},
+        "amount": {"type": "number", "description": "Montant emprunté, en euros"},
         "months": {
             "type": "integer",
-            "description": "Duration (étalement), in months: 4 years is 48",
+            "description": "Étalement (durée), en mois : 4 ans, c'est 48",
         },
         "monthly_income": {
             "type": "number",
-            "description": "Net monthly income (ressources), in euros",
+            "description": "Ressources : revenus nets mensuels, en euros",
         },
-        "age": {"type": "integer", "description": "The customer's age, in years"},
+        "age": {"type": "integer", "description": "L'âge du client, en années"},
     },
     "required": ["purpose", "amount", "months", "monthly_income", "age"],
 }
@@ -232,10 +251,11 @@ TOOLS = [
         "type": "function",
         "name": "get_procedure",
         "description": (
-            "Read the bank's procedure sheet for a topic: what to ask, the rules, delays"
-            " and fees, and what you can do for the customer. Call it as soon as you know"
-            " the topic, before asking or explaining anything. It starts that procedure"
-            " (démarche): call it again only to switch to another one."
+            "Lire la fiche de la banque sur un sujet : quoi demander, les règles, les"
+            " délais et les frais, et ce que tu peux faire pour le client. Appelle-la dès"
+            " que tu connais le sujet, avant de demander ou d'expliquer quoi que ce soit."
+            " Elle commence cette démarche : rappelle-la seulement pour passer à une"
+            " autre."
         ),
         "parameters": {
             "type": "object",
@@ -255,9 +275,9 @@ TOOLS = [
         "type": "function",
         "name": "simulate_loan",
         "description": (
-            "Simulate a loan: monthly payment, rate and total cost. No commitment. Only"
-            " call it once the customer has given all five answers, and again right away"
-            " each time they change the duration or the amount."
+            "Simuler un crédit : mensualité, taux et coût total. Sans engagement."
+            " Appelle-la seulement quand le client a donné les cinq réponses, puis de"
+            " nouveau tout de suite à chaque fois qu'il change la durée ou le montant."
         ),
         "parameters": {
             **LOAN_ANSWERS,
@@ -265,8 +285,8 @@ TOOLS = [
                 **LOAN_ANSWERS["properties"],
                 "previous_monthly_payment": {
                     "type": "number",
-                    "description": "When simulating again: the monthly payment of the"
-                    " previous simulation, in euros, to compare",
+                    "description": "Quand tu refais la simulation : la mensualité de"
+                    " la simulation précédente, en euros, pour comparer",
                 },
             },
         },
@@ -275,9 +295,10 @@ TOOLS = [
         "type": "function",
         "name": "send_loan_to_advisor",
         "description": (
-            "Pass the final loan simulation on to a loan advisor, who calls the customer"
-            " back, and prepare a PDF recap the customer can download. Returns what to"
-            " say, with the reference number. Only call it when the customer asked for it."
+            "Transmettre la simulation de crédit finale à un conseiller crédit, qui"
+            " rappelle le client, et préparer un récapitulatif PDF à télécharger. Renvoie"
+            " ce qu'il faut dire, avec le numéro de référence. Appelle-la seulement quand"
+            " le client l'a demandé."
         ),
         "parameters": LOAN_ANSWERS,
     },
@@ -285,10 +306,10 @@ TOOLS = [
         "type": "function",
         "name": "send_complaint",
         "description": (
-            "Pass the customer's complaint about the bank on to an advisor, and prepare"
-            " a PDF recap they can download. Call it as soon as you have the four"
-            " answers, without asking for a confirmation. Returns what to say, with the"
-            " reference number."
+            "Transmettre la réclamation du client sur la banque à un conseiller, et"
+            " préparer un récapitulatif PDF à télécharger. Appelle-la dès que tu as les"
+            " quatre réponses, sans demander de confirmation. Renvoie ce qu'il faut dire,"
+            " avec le numéro de référence."
         ),
         "parameters": {
             "type": "object",
@@ -296,24 +317,24 @@ TOOLS = [
                 "reason": {
                     "type": "string",
                     "enum": list(COMPLAINT_REASONS),
-                    "description": "What the complaint is about (motif)",
+                    "description": "Le motif de la réclamation",
                 },
                 "facts": {
                     "type": "string",
-                    "description": "In French, short and impersonal: what happened"
-                    " (faits), with the amount and the merchant or creditor if the"
-                    " customer gave them. E.g. « Prélèvement de 49 euros par Free,"
-                    " jamais autorisé »",
+                    "description": "Les faits, en français, courts et impersonnels :"
+                    " ce qui s'est passé, avec le montant et le commerçant ou le"
+                    " créancier si le client les a donnés. Par exemple « Prélèvement de"
+                    " 49 euros par Free, jamais autorisé »",
                 },
                 "date": {
                     "type": "string",
-                    "description": "In French, when the problem happened, as precisely"
-                    " as the customer said it: « 3 octobre 2026 », « début septembre »",
+                    "description": "En français, la date du problème, aussi précise"
+                    " que le client l'a dite : « 3 octobre 2026 », « début septembre »",
                 },
                 "product": {
                     "type": "string",
                     "enum": list(BANK_PRODUCTS),
-                    "description": "The bank's product or service concerned (produit)",
+                    "description": "Le produit ou service de la banque concerné",
                 },
             },
             "required": ["reason", "facts", "date", "product"],
@@ -323,8 +344,9 @@ TOOLS = [
         "type": "function",
         "name": "start_request",
         "description": (
-            "File a request for the customer, who is logged in to the app. Only call it"
-            " after telling the customer exactly what you will do and getting a clear yes."
+            "Faire une demande pour le client, connecté à l'application. Appelle-la"
+            " seulement après lui avoir dit exactement ce que tu vas faire et avoir eu"
+            " un oui clair."
         ),
         "parameters": {
             "type": "object",
@@ -332,21 +354,22 @@ TOOLS = [
                 "kind": {
                     "type": "string",
                     "enum": list(REQUESTS),
-                    "description": "card_block: block a lost or stolen card (opposition);"
-                    " pin_reissue: send the card PIN again by mail; password_reset:"
-                    " text a password reset link; appointment: book a call with an"
-                    " advisor",
+                    "description": "card_block : bloquer une carte perdue ou volée"
+                    " (opposition) ; pin_reissue : renvoyer le code de la carte par"
+                    " courrier ; password_reset : envoyer par SMS un lien pour changer"
+                    " le mot de passe ; appointment : prendre rendez-vous pour un appel"
+                    " avec un conseiller",
                 },
                 "summary": {
                     "type": "string",
-                    "description": "In French, everything the back office needs: the"
-                    " facts, dates, amounts, choices and preferences the customer gave",
+                    "description": "En français, tout ce dont le back-office a besoin :"
+                    " les faits, dates, montants, choix et préférences du client",
                 },
                 "confirmed": {
                     "type": "boolean",
-                    "description": "card_block only: true once the customer said yes to"
-                    " your question « Je bloque votre carte, c'est définitif :"
-                    " d'accord ? ». Asking for the block is not that yes.",
+                    "description": "card_block seulement : true quand le client a dit"
+                    " oui à ta question « Je bloque votre carte, c'est définitif :"
+                    " d'accord ? ». Demander le blocage n'est pas ce oui.",
                 },
             },
             "required": ["kind", "summary"],
@@ -356,9 +379,9 @@ TOOLS = [
         "type": "function",
         "name": "transfer_to_advisor",
         "description": (
-            "Hand the conversation over to a human advisor, with the context so the"
-            " customer doesn't have to repeat anything. Not for passing on a loan"
-            " simulation or a complaint: that is send_loan_to_advisor or send_complaint."
+            "Passer la conversation à un conseiller humain, avec le contexte, pour que"
+            " le client n'ait rien à répéter. Pas pour transmettre une simulation de"
+            " crédit ou une réclamation : c'est send_loan_to_advisor ou send_complaint."
         ),
         "parameters": {
             "type": "object",
@@ -367,8 +390,9 @@ TOOLS = [
                 "urgency": {"type": "string", "enum": ["normal", "urgent"]},
                 "summary": {
                     "type": "string",
-                    "description": "In French: the customer's need, what you explained,"
-                    " what was done (with reference numbers) and what is left to do",
+                    "description": "En français : le besoin du client, ce que tu as"
+                    " expliqué, ce qui a été fait (avec les numéros de référence) et ce"
+                    " qui reste à faire",
                 },
             },
             "required": ["team", "urgency", "summary"],
@@ -382,7 +406,7 @@ def get_procedure(topic):
         if path.stem == topic.strip().lower():
             return {"source": f"fiche {_name(path)}", "content": path.read_text()}
     topics = [path.stem for path in _sheets()]
-    return {"error": f"No procedure sheet {topic!r}. Topics: {topics}"}
+    return {"error": f"Pas de fiche {topic!r}. Sujets : {topics}"}
 
 
 def simulate_loan(
@@ -403,22 +427,22 @@ def simulate_loan(
     missing = [name for name, value in answers.items() if not value]
     if missing:  # no calculation on half the answers
         return {
-            "error": f"Missing: {', '.join(missing)}. Ask the customer, one question at"
-            " a time, then simulate."
+            "error": f"Il manque : {', '.join(missing)}. Demande-le au client, une"
+            " question à la fois, puis simule."
         }
     label, rate, min_amount, max_amount, min_months, max_months = LOANS[purpose]
     amount, months, age = float(amount), int(months), int(age)
     if age < MIN_AGE:
-        return {"error": f"Loans are for customers aged {MIN_AGE} or over."}
+        return {"error": f"Crédit réservé aux clients de {MIN_AGE} ans ou plus."}
     if not (min_amount <= amount <= max_amount and min_months <= months <= max_months):
         return {
-            "error": f"{label}: from {min_amount} to {max_amount} euros, over"
-            f" {min_months} to {max_months} months"
+            "error": f"{label} : de {min_amount} à {max_amount} euros, sur"
+            f" {min_months} à {max_months} mois"
         }
     if age * 12 + months > MAX_AGE_AT_END * 12:
         return {
-            "error": f"The loan must be repaid before age {MAX_AGE_AT_END}: at {age},"
-            f" at most {(MAX_AGE_AT_END - age) * 12} months"
+            "error": f"Le crédit doit être remboursé avant {MAX_AGE_AT_END} ans : à"
+            f" {age} ans, {(MAX_AGE_AT_END - age) * 12} mois au plus"
         }
     # The TAEG is an annual equivalent rate: turn it into the matching monthly one.
     monthly_rate = (1 + rate / 100) ** (1 / 12) - 1
@@ -475,8 +499,9 @@ def start_request(kind, summary, confirmed=False):
     # A card block can't be undone: never on a misheard "bloquez-la".
     if kind == "card_block" and not confirmed:
         return {
-            "not_done": "Ask first, word for word: « Je bloque votre carte, c'est"
-            " définitif : d'accord ? ». After their yes, call again with confirmed true."
+            "not_done": "Demande d'abord, mot pour mot : « Je bloque votre carte,"
+            " c'est définitif : d'accord ? ». Après son oui, rappelle avec confirmed"
+            " true."
         }
     prefix, label, next_steps = REQUESTS[kind]
     reference = _reference(prefix)
@@ -598,13 +623,14 @@ def send_complaint(reason=None, facts=None, date=None, product=None):
     missing = [name for name, value in answers.items() if not (value or "").strip()]
     if missing:  # nothing is passed on before the four answers are in
         return {
-            "error": f"Missing: {', '.join(missing)}. Ask the customer, one question at"
-            " a time, then call again."
+            "error": f"Il manque : {', '.join(missing)}. Demande-le au client, une"
+            " question à la fois, puis rappelle."
         }
     if product not in BANK_PRODUCTS:
         return {
-            "error": "Only complaints about the bank's products and services. Tell the"
-            " customer you can't handle this request: it isn't about the bank."
+            "error": "Seulement les réclamations sur les produits et services de la"
+            " banque. Dis au client que tu ne peux pas traiter cette demande : elle ne"
+            " concerne pas la banque."
         }
     reason, product = COMPLAINT_REASONS[reason], BANK_PRODUCTS[product]
     facts, date = facts.strip(), date.strip()
@@ -696,7 +722,7 @@ class Conversation:
     def run(self, name, args):
         own = PROCEDURE_OF.get(name)
         if own and own != self.procedure:
-            return {"error": f"Call get_procedure for {own} first."}
+            return {"error": f"Appelle d'abord get_procedure pour {own}."}
         if name == "get_procedure":
             return self.start(**args)
         result = FUNCTIONS[name](**args)

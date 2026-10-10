@@ -1,349 +1,142 @@
-import { useEffect, useRef, useState } from "react";
-import { startCall, type Call, type ServerEvent } from "./realtime";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Accessibility as AccessibilityIcon,
+  AudioLines,
+  ClipboardList,
+  House,
+  MessageSquareText,
+  type LucideIcon,
+} from "lucide-react";
+import { Assistant, type Intent } from "./assistant/Assistant";
+import { useDemarches } from "./demarches";
+import { Accessibility } from "./pages/Accessibility";
+import { Demarches } from "./pages/Demarches";
+import { Home } from "./pages/Home";
+import { BRAND } from "./site";
 
-type Message = { id: string; role: "user" | "assistant" | "action"; text: string };
-// What the assistant is doing right now: shown big, but not read out by screen readers
-// (they would talk over the assistant).
-type Turn = "listening" | "user" | "thinking" | "assistant";
+type Route = "accueil" | "assistant" | "demarches" | "accessibilite";
 
-const TURN_LABELS: Record<Turn, string> = {
-  listening: "Je vous écoute",
-  user: "Vous parlez…",
-  thinking: "Je regarde…",
-  assistant: "L'assistant parle…",
-};
+const ROUTES: { route: Route; label: string; icon: LucideIcon }[] = [
+  { route: "accueil", label: "Accueil", icon: House },
+  { route: "assistant", label: "Assistant", icon: MessageSquareText },
+  { route: "demarches", label: "Mes démarches", icon: ClipboardList },
+  { route: "accessibilite", label: "Accessibilité", icon: AccessibilityIcon },
+];
 
-const TOPICS: Record<string, string> = {
-  code_perdu: "Code perdu",
-  credit: "Crédit",
-  gestion_privee: "Gestion privée",
-  reclamation: "Réclamation",
-};
-
-const REQUESTS: Record<string, string> = {
-  card_block: "opposition sur la carte",
-  pin_reissue: "réédition du code",
-  password_reset: "nouveau mot de passe",
-  appointment: "rendez-vous",
-};
-
-// The recap PDFs to download, by the tool that makes them.
-const RECAPS: Record<string, { label: string; file: string }> = {
-  send_loan_to_advisor: { label: "du crédit", file: "credit" },
-  send_complaint: { label: "de la réclamation", file: "reclamation" },
-};
-
-type Recap = { url: string; name: string; label: string };
-
-// Errors that just mean "nothing to cancel" or "nothing said" in push-to-talk.
-const HARMLESS_ERRORS = ["response_cancel_not_active", "input_audio_buffer_commit_empty"];
-
-function parse(json: string) {
-  try {
-    return JSON.parse(json || "{}");
-  } catch {
-    return {};
-  }
+// Hash routes (#/assistant): the server only serves index.html at /.
+function currentRoute(): Route {
+  const name = location.hash.replace(/^#\/?/, "");
+  return ROUTES.find((r) => r.route === name)?.route ?? "accueil";
 }
 
-function describeCall(name: string, args: string): string {
-  const a = parse(args);
-  switch (name) {
-    case "get_procedure":
-      return `Fiche ${TOPICS[a.topic] ?? a.topic}`;
-    case "simulate_loan":
-      return `Simulation : ${a.amount} € sur ${a.months} mois`;
-    case "send_loan_to_advisor":
-      return "Transmission au conseiller crédit";
-    case "send_complaint":
-      return "Transmission de la réclamation";
-    case "start_request":
-      return `Demande : ${REQUESTS[a.kind] ?? a.kind}`;
-    case "transfer_to_advisor":
-      return "Transfert vers un conseiller";
-    default:
-      return name;
-  }
+function go(route: Route) {
+  location.hash = `#/${route}`;
 }
 
-function describeResult(r: any): string | null {
-  if (r.reference) return `${r.request} · n° ${r.reference}`;
-  if (r.ticket) return `${r.team} · ${r.when} · n° ${r.ticket}`;
-  if (r.monthly_payment_eur) return `Simulation : ${r.monthly_payment_eur} € par mois`;
-  return null;
-}
-
-function savedPushToTalk(): boolean {
-  try {
-    return localStorage.getItem("pushToTalk") === "1";
-  } catch {
-    return false;
-  }
+function BrandLink() {
+  return (
+    <a className="brand" href="#/accueil" aria-label={`${BRAND}, assistant : accueil`}>
+      <span className="brand-mark" aria-hidden="true">
+        <AudioLines />
+      </span>
+      <span className="brand-name" aria-hidden="true">
+        {BRAND}
+        <small>Assistant</small>
+      </span>
+      <span className="demo-pill" aria-hidden="true">
+        Démo
+      </span>
+    </a>
+  );
 }
 
 export default function App() {
-  const [phase, setPhase] = useState<"idle" | "connecting" | "live">("idle");
-  const [notice, setNotice] = useState("Touchez « Appeler » pour parler à votre assistant.");
-  const [turn, setTurn] = useState<Turn>("listening");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [pushToTalk, setPushToTalk] = useState(savedPushToTalk);
-  const [talking, setTalking] = useState(false);
-  // The recap PDFs (loan, complaint) once passed on to an advisor: the last of each.
-  const [recaps, setRecaps] = useState<Record<string, Recap>>({});
-
-  const call = useRef<Call | null>(null);
-  const audio = useRef<HTMLAudioElement>(null);
-  const responding = useRef(false);
-  const speaking = useRef(false);
-  const wakeLock = useRef<WakeLockSentinel | null>(null);
-  const bottom = useRef<HTMLDivElement>(null);
-  const toolNames = useRef(new Map<string, string>()); // by call_id, for the results
+  const [route, setRoute] = useState(currentRoute);
+  const [intent, setIntent] = useState<Intent | null>(null);
+  const [live, setLive] = useState(false); // a call is on: shown everywhere
+  const { demarches } = useDemarches();
+  const main = useRef<HTMLElement>(null);
+  const intents = useRef(0);
+  const first = useRef(true);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const onHash = () => setRoute(currentRoute());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
-  // Adds a message, or replaces / extends the one with the same id.
-  function upsert(id: string, role: Message["role"], text: string, append = false) {
-    setMessages((list) => {
-      const i = list.findIndex((m) => m.id === id);
-      if (i < 0) return [...list, { id, role, text }];
-      const copy = [...list];
-      copy[i] = { ...copy[i], text: append ? copy[i].text + text : text };
-      return copy;
-    });
-  }
-
-  function remove(id: string) {
-    setMessages((list) => list.filter((m) => m.id !== id));
-  }
-
-  function onEvent(e: ServerEvent) {
-    switch (e.type) {
-      case "input_audio_buffer.speech_started":
-        setTurn("user");
-        break;
-      case "input_audio_buffer.speech_stopped":
-        setTurn("thinking");
-        break;
-      case "input_audio_buffer.committed":
-        upsert(e.item_id, "user", "…"); // placeholder: keeps the order of the turns
-        break;
-      case "conversation.item.input_audio_transcription.completed":
-        if (e.transcript.trim()) upsert(e.item_id, "user", e.transcript.trim());
-        else remove(e.item_id);
-        break;
-      case "response.created":
-        responding.current = true;
-        break;
-      case "response.output_audio_transcript.delta":
-        upsert(e.item_id, "assistant", e.delta, true);
-        break;
-      case "output_audio_buffer.started":
-        speaking.current = true;
-        setTurn("assistant");
-        break;
-      case "output_audio_buffer.stopped":
-      case "output_audio_buffer.cleared":
-        speaking.current = false;
-        setTurn("listening");
-        break;
-      case "response.done": {
-        responding.current = false;
-        const calls = e.response.output.filter(
-          (item: ServerEvent) => item.type === "function_call",
-        );
-        for (const c of calls) {
-          toolNames.current.set(c.call_id, c.name);
-          upsert(c.call_id, "action", describeCall(c.name, c.arguments));
-        }
-        if (calls.length) setTurn("thinking");
-        break;
-      }
-      case "conversation.item.done": // the server's tool results, when they reach us
-        if (e.item.type === "function_call_output") {
-          const result = parse(e.item.output);
-          const text = describeResult(result);
-          if (text) upsert(e.item.call_id, "action", text);
-          const tool = toolNames.current.get(e.item.call_id) ?? "";
-          if (result.pdf && RECAPS[tool]) {
-            const { label, file } = RECAPS[tool];
-            const name = `recapitulatif-${file}-${result.reference.replaceAll(" ", "-")}.pdf`;
-            setRecaps((all) => ({
-              ...all,
-              [tool]: { url: `/api/recaps/${result.pdf}`, name, label },
-            }));
-          }
-        }
-        break;
-      case "error":
-        if (!HARMLESS_ERRORS.includes(e.error?.code)) {
-          console.warn("Realtime error", e.error);
-          upsert(crypto.randomUUID(), "action", `Erreur : ${e.error?.message}`);
-        }
-        break;
+  // A new page: back to the top, title, and the screen reader's focus on its heading.
+  useEffect(() => {
+    const label = ROUTES.find((r) => r.route === route)!.label;
+    document.title = `${label} · ${BRAND} Assistant (démo)`;
+    if (first.current) {
+      first.current = false;
+      return;
     }
-  }
+    if (main.current) main.current.scrollTop = 0;
+    document.querySelector<HTMLElement>(`[data-route="${route}"] h1`)?.focus();
+  }, [route]);
 
-  async function keepScreenOn(on: boolean) {
-    // A locked phone stops the mic: keep the screen on during the call.
-    try {
-      if (on) wakeLock.current = await navigator.wakeLock?.request("screen");
-      else await wakeLock.current?.release();
-    } catch {
-      /* not supported, or battery saver: the call still works */
-    }
-  }
+  const openAssistant = (request: Omit<Intent, "id">) => {
+    setIntent({ ...request, id: ++intents.current });
+    go("assistant");
+  };
+  const onLiveChange = useCallback((on: boolean) => setLive(on), []);
 
-  function onEnd(reason?: string) {
-    call.current = null;
-    setPhase("idle");
-    setTalking(false);
-    setTurn("listening");
-    setNotice(reason ?? "Appel terminé. Touchez « Appeler » pour recommencer.");
-    keepScreenOn(false);
-  }
-
-  async function dial() {
-    setPhase("connecting");
-    setNotice("Connexion…");
-    setMessages([]);
-    setRecaps({});
-    toolNames.current.clear();
-    try {
-      call.current = await startCall({
-        pushToTalk,
-        audio: audio.current!,
-        onEvent,
-        onEnd,
-      });
-      setPhase("live");
-      setTurn("listening");
-      setNotice(
-        pushToTalk
-          ? "En ligne. Touchez « Parler », posez votre question, puis touchez « Envoyer »."
-          : "En ligne. Parlez quand vous voulez. Pour couper la parole à l'assistant, parlez ou touchez « Interrompre ».",
-      );
-      keepScreenOn(true);
-    } catch (error) {
-      setPhase("idle");
-      if (error instanceof DOMException && error.name === "NotAllowedError") {
-        setNotice("Le micro est bloqué : autorisez-le dans le navigateur, puis réessayez.");
-      } else {
-        setNotice(`L'appel n'a pas pu démarrer. ${(error as Error).message}`);
-      }
-    }
-  }
-
-  // Cuts the assistant off, greeting included: talking over it doesn't always work (the
-  // phone's echo cancellation can muffle the voice while the speaker plays).
-  function interrupt() {
-    const c = call.current!;
-    if (responding.current) c.send({ type: "response.cancel" });
-    if (speaking.current) c.send({ type: "output_audio_buffer.clear" });
-  }
-
-  // Push-to-talk: "Parler" interrupts the assistant and opens the mic, "Envoyer" sends.
-  function talk() {
-    const c = call.current!;
-    interrupt();
-    c.send({ type: "input_audio_buffer.clear" });
-    c.setMic(true);
-    setTalking(true);
-    setTurn("user");
-  }
-
-  function sendTurn() {
-    const c = call.current!;
-    setTalking(false);
-    setTurn("thinking");
-    // The last words are still on their way: close the mic a bit later.
-    setTimeout(() => {
-      c.setMic(false);
-      c.send({ type: "input_audio_buffer.commit" });
-      c.send({ type: "response.create" });
-    }, 400);
-  }
-
-  function togglePushToTalk(on: boolean) {
-    setPushToTalk(on);
-    try {
-      localStorage.setItem("pushToTalk", on ? "1" : "0");
-    } catch {
-      /* private browsing: not remembered */
-    }
-  }
+  const navLinks = (className: string) =>
+    ROUTES.map(({ route: r, label, icon: Icon }) => (
+      <a
+        key={r}
+        href={`#/${r}`}
+        className={className}
+        aria-current={route === r ? "page" : undefined}
+      >
+        <Icon aria-hidden="true" />
+        <span>{label}</span>
+        {r === "demarches" && demarches.length > 0 && (
+          <span className="badge">
+            <span className="sr-only">(</span>
+            {demarches.length}
+            <span className="sr-only">)</span>
+          </span>
+        )}
+      </a>
+    ));
 
   return (
-    <main className="app">
-      <header>
-        <h1>Assistant bancaire vocal</h1>
-        <p className="subtitle">Réclamation, code perdu, crédit, épargne.</p>
+    <div className="shell">
+      <button className="skip-link" onClick={() => main.current?.focus()}>
+        Aller au contenu
+      </button>
+      <header className="topbar">
+        <div className="container topbar-inner">
+          <BrandLink />
+          <nav className="topnav" aria-label="Menu principal">
+            {navLinks("topnav-link")}
+          </nav>
+        </div>
       </header>
 
-      <p className="notice" role="status" aria-live="polite">
-        {notice}
-      </p>
-
-      <section className="transcript" aria-label="Conversation">
-        {messages.map((m) => (
-          <p key={m.id} className={`message ${m.role}`}>
-            {m.role === "user" && <span className="who">Vous</span>}
-            {m.role === "assistant" && <span className="who">Assistant</span>}
-            {m.text}
-          </p>
-        ))}
-        <div ref={bottom} />
-      </section>
-
-      <footer>
-        {/* Kept after hanging up, so the customer can download them once the call is over. */}
-        {Object.values(recaps).map((recap) => (
-          <a key={recap.url} className="big recap" href={recap.url} download={recap.name}>
-            Télécharger le récapitulatif {recap.label} (PDF)
-          </a>
-        ))}
-
-        {phase === "live" && (
-          <p className={`turn ${turn}`} aria-hidden="true">
-            {TURN_LABELS[turn]}
-          </p>
+      <main ref={main} className={`main route-${route}`} tabIndex={-1}>
+        {route === "accueil" && (
+          <Home onAssistant={openAssistant} onAccessibility={() => go("accessibilite")} />
         )}
+        {route === "demarches" && <Demarches onAssistant={() => openAssistant({ mode: "voice" })} />}
+        {route === "accessibilite" && <Accessibility />}
+        {/* Always there, hidden on the other pages: a call or a chat goes on meanwhile. */}
+        <Assistant hidden={route !== "assistant"} intent={intent} onLiveChange={onLiveChange} />
+      </main>
 
-        {phase !== "live" && (
-          <>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={pushToTalk}
-                onChange={(e) => togglePushToTalk(e.target.checked)}
-              />
-              Pièce bruyante : je touche « Parler » puis « Envoyer »
-            </label>
-            <button className="big call" onClick={dial} disabled={phase === "connecting"}>
-              {phase === "connecting" ? "Connexion…" : "Appeler"}
-            </button>
-          </>
-        )}
+      {route !== "assistant" && (
+        <a className={`fab ${live ? "live" : ""}`} href="#/assistant">
+          <AudioLines aria-hidden="true" />
+          {live ? "Appel en cours" : "Assistant"}
+        </a>
+      )}
 
-        {phase === "live" && pushToTalk && (
-          <button className={`big talk ${talking ? "on" : ""}`} onClick={talking ? sendTurn : talk}>
-            {talking ? "Envoyer" : "Parler"}
-          </button>
-        )}
-        {phase === "live" && !pushToTalk && (
-          <button className="big talk" onClick={interrupt}>
-            Interrompre
-          </button>
-        )}
-        {phase === "live" && (
-          <button className="big hangup small" onClick={() => call.current?.hangUp()}>
-            Raccrocher
-          </button>
-        )}
-      </footer>
-
-      <audio ref={audio} autoPlay playsInline />
-    </main>
+      <nav className="tabbar" aria-label="Menu principal">
+        {navLinks("tab")}
+      </nav>
+    </div>
   );
 }
